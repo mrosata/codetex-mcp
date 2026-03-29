@@ -437,3 +437,35 @@
 - `random.uniform` uses the default PRNG (not cryptographic) for jitter, which is fine for backoff timing
 - Next priority: **US-012** (Embeddings module) in `embeddings/embedder.py`
 - Architecture reference: `tasks/architecture.md` §3.6
+
+## US-012: Embeddings module
+
+**Status:** Complete
+**Date:** 2026-03-29
+
+### What was done
+- Created `src/codetex_mcp/embeddings/embedder.py` with `Embedder` class:
+  - `MODEL_NAME = "all-MiniLM-L6-v2"` and `DIMENSIONS = 384` class constants
+  - `__init__()` — initializes `_model` to `None`; model is NOT loaded at construction time
+  - `_load_model()` — lazily instantiates `SentenceTransformer(self.MODEL_NAME)` on first call; no-ops on subsequent calls; wraps failures in `EmbeddingError` with model name and troubleshooting guidance
+  - `embed(text: str) -> list[float]` — calls `_load_model()`, encodes text with `normalize_embeddings=True`, returns `.tolist()` (384-dim float list)
+  - `embed_batch(texts: list[str]) -> list[list[float]]` — same pattern, returns list of vectors; empty input short-circuits without loading model
+  - `SentenceTransformer` imported at module level for patchability; only *instantiation* is lazy (deferred to `_load_model`)
+- Created test suite: `tests/test_embeddings/test_embedder.py` with 19 tests across 6 classes:
+  - `TestEmbedderConstants` (2 tests) — MODEL_NAME, DIMENSIONS
+  - `TestLazyLoading` (4 tests) — model None at construction, loaded on first embed, loaded on first embed_batch, loaded only once
+  - `TestModelLoadFailure` (3 tests) — raises EmbeddingError on ImportError, OSError, error message includes model name
+  - `TestEmbed` (3 tests) — returns list[float], 384 dimensions, passes normalize_embeddings=True
+  - `TestEmbedBatch` (5 tests) — correct count, list[float] elements, empty returns empty, empty does not load model, passes normalize_embeddings=True
+  - `TestNormalization` (2 tests) — embed returns unit-length vector, embed_batch returns unit-length vectors
+- mypy passes (30 source files, no issues)
+- All 315 tests pass (19 new + 296 existing)
+
+### Notes for next developer
+- `SentenceTransformer` is imported at module level (not inside `_load_model`). This makes it patchable in tests via `unittest.mock.patch("codetex_mcp.embeddings.embedder.SentenceTransformer", ...)`. The import itself is lightweight — only instantiation triggers the ~23MB model download
+- `_model` is typed as `SentenceTransformer | None` with `.encode()` calls using `# type: ignore[union-attr]` since mypy can't narrow past the `_load_model()` guard
+- `normalize_embeddings=True` is passed to `encode()` so vectors are unit-length (L2 norm = 1.0), making them suitable for cosine similarity. sqlite-vec uses L2 distance by default, but for normalized vectors L2 and cosine distance give equivalent ranking
+- Tests use `numpy` arrays with `MagicMock` for `SentenceTransformer` — no real model download during testing
+- `embed_batch([])` returns `[]` immediately without calling `_load_model()` — this avoids unnecessary model initialization
+- Next priority: **US-013** (RepoManager core service) in `core/repo_manager.py`
+- Architecture reference: `tasks/architecture.md` §3.3.1

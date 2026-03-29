@@ -215,8 +215,8 @@
         "Typecheck passes"
       ],
       "priority": 12,
-      "passes": false,
-      "notes": "Reference architecture doc §3.6. CPU-only, ~23MB download on first use."
+      "passes": true,
+      "notes": "Reference architecture doc §3.6. Completed: embeddings/embedder.py with Embedder class: MODEL_NAME='all-MiniLM-L6-v2', DIMENSIONS=384, SentenceTransformer imported at module level but model instantiation is lazy (deferred to first embed/embed_batch call). embed(text) returns 384-dim normalized float list via encode(text, normalize_embeddings=True).tolist(). embed_batch(texts) returns list of 384-dim vectors; empty input short-circuits without loading model. _load_model() wraps SentenceTransformer construction in try/except, raises EmbeddingError with model name and troubleshooting guidance on failure. 19 tests across 6 classes covering constants, lazy loading (not loaded at construction, loaded on first embed/embed_batch, loaded only once), model load failure (ImportError, OSError, error message includes model name), embed (returns list[float], 384 dims, passes normalize_embeddings=True), embed_batch (correct count, list[float] elements, empty input returns empty without loading model, passes normalize_embeddings=True), normalization (unit-length vectors for both embed and embed_batch). mypy passes (30 source files), all 315 tests pass."
     },
     {
       "id": "US-013",
