@@ -255,8 +255,8 @@
         "Typecheck passes"
       ],
       "priority": 14,
-      "passes": false,
-      "notes": "Reference architecture doc §3.3.4 and §3.3.5."
+      "passes": true,
+      "notes": "Reference architecture doc §3.3.4 and §3.3.5. Completed: core/context_store.py with ContextStore class: __init__(db: Database), get_repo_overview(repo_id) queries repo_overviews table and returns overview string or None, get_file_context(repo_id, file_path) queries files+symbols tables and returns FileContext dataclass (summary, role, imports, symbols as list[SymbolBrief], lines_of_code, token_count) or None, get_symbol_detail(repo_id, symbol_name) joins symbols+files tables and returns SymbolDetail dataclass (signature, summary, parameters, return_type, calls, file_path, start_line) or None, get_repo_status(repo_id) queries repositories+files+symbols tables and returns RepoStatus dataclass (indexed_commit, files_indexed, symbols_indexed, total_tokens, last_indexed_at). core/search_engine.py with SearchEngine class: __init__(db, embedder), search(repo_id, query, max_results=10) embeds query via Embedder, searches vec_file_embeddings and vec_symbol_embeddings, resolves hits to SearchResult by joining files/symbols tables, merges and sorts by distance (ascending), returns top-N results. SearchResult dataclass: kind (Literal['file','symbol']), path, name, summary, score. 23 tests across 6 classes covering get_repo_overview (exists/none/nonexistent), get_file_context (full/missing/symbols/null), get_symbol_detail (full/missing/join), get_repo_status (empty/data/nonexistent), search (empty/files/symbols/merge/sort/limit/embedder-call/null-summary), SearchResult (fields). mypy passes (33 source files), all 361 tests pass."
     },
     {
       "id": "US-015",

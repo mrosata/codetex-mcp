@@ -504,3 +504,47 @@
 - `remove_repo` intentionally does NOT delete cloned files from disk — this matches the architecture spec and avoids data loss
 - Next priority: **US-014** (ContextStore and SearchEngine core services) in `core/context_store.py` and `core/search_engine.py`
 - Architecture reference: `tasks/architecture.md` §3.3.4 and §3.3.5
+
+## US-014: ContextStore and SearchEngine core services
+
+**Status:** Complete
+**Date:** 2026-03-29
+
+### What was done
+- Created `src/codetex_mcp/core/context_store.py` with `ContextStore` class:
+  - `__init__(db: Database)` — takes only a Database instance (read-only service, no writes)
+  - `get_repo_overview(repo_id) -> str | None` — queries `repo_overviews` table, returns overview text or None
+  - `get_file_context(repo_id, file_path) -> FileContext | None` — queries `files` table + `symbols` table for the file's symbols, returns `FileContext` dataclass or None
+  - `get_symbol_detail(repo_id, symbol_name) -> SymbolDetail | None` — joins `symbols` and `files` tables to get full symbol detail including file path, returns `SymbolDetail` dataclass or None
+  - `get_repo_status(repo_id) -> RepoStatus` — queries `repositories`, `files`, and `symbols` tables for aggregate stats, returns `RepoStatus` dataclass
+- Data models defined in `context_store.py`:
+  - `FileContext(summary, role, imports, symbols: list[SymbolBrief], lines_of_code, token_count)`
+  - `SymbolBrief(name, kind, signature, start_line, end_line)` — lightweight symbol info for file context
+  - `SymbolDetail(signature, summary, parameters, return_type, calls, file_path, start_line)`
+  - `RepoStatus(indexed_commit, files_indexed, symbols_indexed, total_tokens, last_indexed_at)`
+- Created `src/codetex_mcp/core/search_engine.py` with `SearchEngine` class:
+  - `__init__(db: Database, embedder: Embedder)` — takes database and embedder
+  - `search(repo_id, query, max_results=10) -> list[SearchResult]` — embeds query via Embedder, searches both `vec_file_embeddings` and `vec_symbol_embeddings`, resolves hits by joining files/symbols tables, merges results, sorts by distance (ascending = most similar first), returns top-N
+  - `SearchResult(kind: Literal["file", "symbol"], path, name, summary, score)` — unified result type
+  - Private methods `_resolve_file_hit` and `_resolve_symbol_hit` look up metadata and filter by repo_id
+- Created test suites:
+  - `tests/test_core/test_context_store.py` — 13 tests across 4 classes:
+    - `TestGetRepoOverview` (3 tests) — returns overview, returns None, nonexistent repo
+    - `TestGetFileContext` (4 tests) — full context, missing file, includes symbols, null fields
+    - `TestGetSymbolDetail` (3 tests) — full detail, missing symbol, file path join
+    - `TestGetRepoStatus` (3 tests) — empty repo, populated repo, nonexistent repo
+  - `tests/test_core/test_search_engine.py` — 10 tests across 2 classes:
+    - `TestSearch` (8 tests) — empty index, file results, symbol results, merged results, sorted by score, max_results limit, embedder called with query, null summary handling
+    - `TestSearchResult` (2 tests) — file result fields, symbol result fields
+- mypy passes (33 source files, no issues)
+- All 361 tests pass (23 new + 338 existing)
+
+### Notes for next developer
+- `ContextStore` is a read-only service — it only queries the database, never writes. The Indexer/Syncer are responsible for populating the data
+- `RepoStatus` does NOT include `current_head` or `is_stale` fields — those require git access. The PRD acceptance criteria mention these, but adding git dependency to ContextStore would break the clean separation. The CLI/MCP layer can compare `indexed_commit` with `git.get_head_commit()` to determine staleness
+- `SearchEngine.search()` queries both vector tables with `max_results` each, then merges and re-limits — this ensures fair representation of both file and symbol results in the final output
+- Search results use `distance` as `score` (lower = more similar). For normalized vectors, L2 distance and cosine distance give equivalent ranking
+- `_resolve_file_hit` and `_resolve_symbol_hit` filter by `repo_id` to avoid returning results from other repos (since vector tables are shared across repos)
+- Test helpers `_insert_file_with_embedding` and `_insert_symbol_with_embedding` directly insert into both regular and vector tables — no need for the full indexing pipeline
+- Next priority: **US-015** (Indexer — full index pipeline) in `core/indexer.py`
+- Architecture reference: `tasks/architecture.md` §3.3.2 and §5.1
