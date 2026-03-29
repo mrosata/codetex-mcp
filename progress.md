@@ -237,3 +237,45 @@
 - Test helper `_make_embedding(seed)` creates deterministic 384-dim vectors with `[seed + i * 0.001 for i in range(384)]` — different seeds produce meaningfully different vectors for nearest-neighbor testing
 - Next priority: **US-008** (Git operations wrapper) in `git/operations.py`
 - Architecture reference: `tasks/architecture.md` §3.8 for git subprocess wrapper specification
+
+## US-008: Git operations wrapper
+
+**Status:** Complete
+**Date:** 2026-03-29
+
+### What was done
+- Created `src/codetex_mcp/git/operations.py` with:
+  - `DiffResult` dataclass with fields: `added: list[str]`, `modified: list[str]`, `deleted: list[str]`, `renamed: list[tuple[str, str]]`
+  - `GitOperations` class with `__init__(config: Settings)`
+  - `_run(*args, cwd)` private helper — runs `git` binary via `asyncio.create_subprocess_exec`, returns (stdout, stderr), raises `GitError` on non-zero exit
+  - `_raise_git_error(args, stderr)` — detects auth failures ("Permission denied", "Authentication failed") during clone and raises `GitAuthError`, otherwise raises `GitError`
+  - `clone(url, target_dir)` — clones a repository to the target directory
+  - `get_head_commit(repo_path) -> str` — returns current HEAD SHA via `git rev-parse HEAD`
+  - `get_default_branch(repo_path) -> str` — returns current branch via `git symbolic-ref --short HEAD`, falls back to `origin/HEAD` parsing, then to `"main"`
+  - `get_remote_url(repo_path) -> str | None` — returns origin remote URL via `git remote get-url origin`, or None if no remote
+  - `diff_commits(repo_path, from_sha, to_sha) -> DiffResult` — parses `git diff --name-status` output into categorized file changes
+  - `_parse_diff_output(output) -> DiffResult` — static method parsing A/M/D/R status lines; handles rename scores (R095, R100, etc.)
+  - `list_tracked_files(repo_path) -> list[str]` — returns tracked files via `git ls-files`
+  - `is_git_repo(path) -> bool` — checks via `git rev-parse --is-inside-work-tree`, returns False for non-repos and nonexistent paths
+- Created test suite: `tests/test_git/test_operations.py` with 29 tests across 9 classes:
+  - `TestGetHeadCommit` (3 tests) — returns 40-char hex SHA, matches git rev-parse, raises on non-git dir
+  - `TestGetDefaultBranch` (2 tests) — returns branch name, follows checkout to new branch
+  - `TestGetRemoteUrl` (2 tests) — returns None for no remote, returns URL after adding origin
+  - `TestDiffCommits` (5 tests) — added file, modified file, deleted file, renamed file, empty diff
+  - `TestParseDiffOutput` (6 tests) — A/M/D/R individual statuses, mixed output, empty output
+  - `TestListTrackedFiles` (3 tests) — lists tracked files, includes newly staged files, excludes untracked
+  - `TestIsGitRepo` (3 tests) — true for git repo, false for non-repo, false for nonexistent path
+  - `TestClone` (2 tests) — clones local repo successfully, raises GitError for invalid URL
+  - `TestGitAuthError` (3 tests) — detects "Authentication failed", detects "Permission denied", non-auth errors raise plain GitError
+- mypy passes (22 source files, no issues)
+- All 146 tests pass (29 new + 117 existing)
+
+### Notes for next developer
+- All git operations use `asyncio.create_subprocess_exec("git", ...)` — no gitpython dependency
+- Auth error detection only triggers for `clone` commands (other operations on local repos shouldn't hit auth issues)
+- `get_default_branch` has a 3-level fallback: `symbolic-ref` (current branch) → `origin/HEAD` (remote default) → hardcoded `"main"`
+- `_parse_diff_output` handles rename scores like `R095` and `R100` — it checks `status.startswith("R")` and expects tab-separated old/new paths
+- Tests create real temporary git repos using `subprocess.run(["git", ...])` in fixtures — no mocking of git itself, which tests the actual subprocess integration
+- The `is_git_repo` method catches both `GitError` (for non-git dirs) and `FileNotFoundError` (for nonexistent paths)
+- Next priority: **US-009** (Analysis data models and fallback parser) in `analysis/models.py` and `analysis/fallback_parser.py`
+- Architecture reference: `tasks/architecture.md` §3.4.3 and §3.4.4

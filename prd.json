@@ -141,8 +141,8 @@
         "Typecheck passes"
       ],
       "priority": 8,
-      "passes": false,
-      "notes": "Reference architecture doc §3.8. Use asyncio.create_subprocess_exec, not gitpython."
+      "passes": true,
+      "notes": "Reference architecture doc §3.8. Completed: GitOperations class in git/operations.py with async subprocess wrapper using asyncio.create_subprocess_exec. DiffResult dataclass with added/modified/deleted/renamed fields. Methods: clone (with GitAuthError detection for 'Permission denied' and 'Authentication failed'), get_head_commit (via rev-parse HEAD), get_default_branch (via symbolic-ref with fallback to origin/HEAD), get_remote_url (via remote get-url origin), diff_commits (parses --name-status output including renames), list_tracked_files (via ls-files), is_git_repo (via rev-parse --is-inside-work-tree). All methods raise GitError with stderr on failure. 29 tests across 9 classes covering HEAD parsing, branch detection, remote URL, diff parsing (add/modify/delete/rename/empty/mixed), tracked files, is_git_repo, clone, and auth error detection. mypy passes (22 source files)."
     },
     {
       "id": "US-009",
