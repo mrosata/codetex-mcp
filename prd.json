@@ -1,0 +1,386 @@
+{
+  "project": "codetex-mcp",
+  "branchName": "ralph/code-context-manager",
+  "description": "Commit-aware code context manager for LLMs — MCP server and CLI that builds multi-layered, incremental indexes of code repositories and serves structured context via MCP tools and CLI commands.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Project scaffold, dependencies, and error hierarchy",
+      "description": "As a developer, I need the full project structure set up with all dependencies declared, package directories created, and the exception hierarchy defined so that all subsequent stories can import from the right places.",
+      "acceptanceCriteria": [
+        "pyproject.toml has all runtime dependencies: typer>=0.9, rich>=13.0, mcp>=1.0, anthropic>=0.40, sentence-transformers>=3.0, sqlite-vec>=0.1, aiosqlite>=0.20, pathspec>=0.12, tiktoken>=0.7, tree-sitter>=0.23",
+        "pyproject.toml has optional deps for tree-sitter grammars (python, javascript, typescript, go, rust, java, ruby, cpp) and an all-grammars extra",
+        "pyproject.toml has dev deps: pytest>=8.0, pytest-asyncio>=0.23, pytest-cov>=5.0, ruff>=0.5, mypy>=1.10",
+        "pyproject.toml has [project.scripts] entry: codetex = 'codetex_mcp.cli.app:main'",
+        "All package directories exist under src/codetex_mcp/ with __init__.py: cli/, server/, core/, analysis/, llm/, embeddings/, storage/, storage/migrations/, git/, config/",
+        "src/codetex_mcp/__main__.py exists and calls cli.app:main",
+        "src/codetex_mcp/exceptions.py defines: CodetexError, RepositoryNotFoundError, RepositoryAlreadyExistsError, GitError, GitAuthError (with setup guidance message), IndexError, LLMError, RateLimitError, ConfigError, DatabaseError, EmbeddingError, NoIndexError",
+        "All exceptions inherit from CodetexError; GitAuthError inherits from GitError; RateLimitError inherits from LLMError",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "Reference architecture doc tasks/architecture.md §2, §3.10, §11 for exact structure and dependency versions. Completed: all dirs with __init__.py (including storage/migrations/), full exception hierarchy, pyproject.toml with all deps, __main__.py entry point, typecheck passes."
+    },
+    {
+      "id": "US-002",
+      "title": "Configuration settings with TOML loading and env overrides",
+      "description": "As a developer, I need a Settings dataclass that loads config from TOML file and environment variables so that all modules can access configuration consistently.",
+      "acceptanceCriteria": [
+        "config/settings.py defines a Settings dataclass with fields: data_dir (Path, default ~/.codetex), repos_dir (Path, default data_dir/repos), db_path (Path, default data_dir/codetex.db), llm_provider (str, default 'anthropic'), llm_model (str, default 'claude-sonnet-4-5-20250929'), llm_api_key (str|None), max_file_size_kb (int, default 512), max_concurrent_llm_calls (int, default 5), tier1_rebuild_threshold (float, default 0.10), default_excludes (list[str] with node_modules/, vendor/, __pycache__/, .git/, *.min.js, *.min.css, *.lock, *.map, etc.), embedding_model (str, default 'all-MiniLM-L6-v2')",
+        "Settings.load() classmethod loads in order: hardcoded defaults → ~/.codetex/config.toml (if exists) → env vars (CODETEX_DATA_DIR, CODETEX_LLM_PROVIDER, CODETEX_LLM_MODEL, ANTHROPIC_API_KEY, CODETEX_MAX_FILE_SIZE_KB, CODETEX_MAX_CONCURRENT_LLM, CODETEX_TIER1_THRESHOLD, CODETEX_EMBEDDING_MODEL)",
+        "Later sources override earlier ones (env vars win over TOML, TOML wins over defaults)",
+        "TOML parsing uses tomllib (stdlib)",
+        "Settings.load() creates data_dir and repos_dir if they don't exist",
+        "Tests verify default values, TOML override, and env var override",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "Reference architecture doc §3.9.1 and §8 for config schema. Completed: Settings dataclass with all fields, load() with 3-layer override (defaults → TOML → env vars), TOML parsing via tomllib, directory creation, 27 tests covering defaults/TOML/env/load integration, mypy passes."
+    },
+    {
+      "id": "US-003",
+      "title": "Ignore filter for file exclusion",
+      "description": "As a developer, I need an IgnoreFilter that chains .gitignore, .codetexignore, default excludes, size threshold, and binary detection so that the indexer can skip irrelevant files.",
+      "acceptanceCriteria": [
+        "config/ignore.py defines IgnoreFilter class with __init__(repo_path: Path, default_excludes: list[str], max_file_size_kb: int)",
+        "is_excluded(file_path: Path) returns tuple[bool, str|None] where the string is the reason (e.g., 'gitignore', 'codetexignore', 'size threshold', 'binary', 'default exclude')",
+        "filter_files(files: list[str]) returns only non-excluded files",
+        "Filter chain order: default excludes → .gitignore rules → .codetexignore rules → max file size → binary detection (null byte in first 8KB)",
+        ".codetexignore can override .gitignore with !pattern syntax",
+        "Uses pathspec library for .gitignore-style pattern matching",
+        "Tests cover: default excludes hit, gitignore hit, codetexignore hit, codetexignore override via !, size threshold, binary detection",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "Reference architecture doc §3.9.2 for filter chain details. Completed: IgnoreFilter class in config/ignore.py with 5-stage filter chain (default excludes → .gitignore → .codetexignore → size threshold → binary detection), negation override support via ! patterns in .codetexignore, pathspec library for gitignore-style matching, 22 tests covering all filter stages and chain ordering, mypy passes."
+    },
+    {
+      "id": "US-004",
+      "title": "Database foundation with migrations",
+      "description": "As a developer, I need the Database class with async connection management, WAL mode, sqlite-vec extension loading, and a migration runner, plus the initial migration creating all tables.",
+      "acceptanceCriteria": [
+        "storage/database.py defines Database class with __init__(db_path: Path)",
+        "connect() opens aiosqlite connection, enables WAL mode, loads sqlite-vec extension, enables foreign keys",
+        "close() closes the connection",
+        "execute(sql, params) and executemany(sql, params_list) delegate to the connection",
+        "migrate() reads schema_version table (creates it if not exists), finds unapplied SQL files in storage/migrations/ ordered by number prefix, executes them, records new version",
+        "storage/migrations/001_initial.sql creates all 6 tables (schema_version, repositories, files, symbols, dependencies, repo_overviews) with all columns, indexes, and foreign keys per architecture doc §4.1",
+        "001_initial.sql also creates 2 sqlite-vec virtual tables: vec_file_embeddings and vec_symbol_embeddings with FLOAT[384]",
+        "Tests verify: migration runs successfully, tables exist after migration, re-running migrate is idempotent",
+        "Typecheck passes"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "Reference architecture doc §3.7 and §4 for schema details. Completed: Database class in storage/database.py with async connect/close/execute/executemany/migrate methods, WAL mode, sqlite-vec extension loading via sqlite_vec.loadable_path(), foreign keys enabled, migration runner reading numbered SQL files from storage/migrations/ with schema_version tracking. 001_initial.sql creates all 6 tables (schema_version, repositories, files, symbols, dependencies, repo_overviews) with all columns/indexes/foreign keys per architecture spec, plus 2 sqlite-vec virtual tables (vec_file_embeddings, vec_symbol_embeddings) with FLOAT[384]. 16 tests covering connect, WAL mode, foreign keys, sqlite-vec loading, close, execute, executemany, migration creates tables/vector tables/indexes, idempotency, schema version recording, correct columns, foreign key cascades. mypy passes (17 source files)."
+    },
+    {
+      "id": "US-005",
+      "title": "Repository storage DAO",
+      "description": "As a developer, I need CRUD operations for the repositories table so that RepoManager can persist and query repo records.",
+      "acceptanceCriteria": [
+        "storage/repositories.py provides async functions: create_repo(db, name, remote_url, local_path, default_branch) -> Repository, get_repo_by_name(db, name) -> Repository|None, list_repos(db) -> list[Repository], update_indexed_commit(db, repo_id, commit_sha) with last_indexed_at=now, delete_repo(db, repo_id)",
+        "Repository is a dataclass with fields matching the repositories table columns",
+        "create_repo raises RepositoryAlreadyExistsError on unique constraint violation",
+        "Tests verify: create, get by name, list, update commit, delete, duplicate name error",
+        "Typecheck passes"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": "Reference architecture doc §4.1 repositories table schema."
+    },
+    {
+      "id": "US-006",
+      "title": "File, symbol, and dependency storage DAOs",
+      "description": "As a developer, I need CRUD operations for files, symbols, and dependencies tables so that the indexer can persist parsed data and summaries.",
+      "acceptanceCriteria": [
+        "storage/files.py provides: upsert_file(db, repo_id, path, language, lines_of_code, token_count, imports_json) -> file_id, update_file_summary(db, file_id, summary, role), get_file(db, repo_id, path) -> FileRecord|None, list_files(db, repo_id) -> list[FileRecord], delete_file(db, file_id), count_files(db, repo_id) -> int, get_total_tokens(db, repo_id) -> int",
+        "storage/symbols.py provides: upsert_symbol(db, file_id, repo_id, name, kind, signature, docstring, start_line, end_line, parameters_json, return_type, calls_json) -> symbol_id, update_symbol_summary(db, symbol_id, summary), get_symbol(db, repo_id, name) -> SymbolRecord|None, list_symbols_by_file(db, file_id) -> list[SymbolRecord], delete_symbols_by_file(db, file_id)",
+        "storage/files.py also provides: upsert_dependency(db, repo_id, source_file_id, target_path, imported_names_json), delete_dependencies_by_file(db, file_id)",
+        "FileRecord and SymbolRecord are dataclasses matching their table columns",
+        "Upsert functions use INSERT OR REPLACE or ON CONFLICT UPDATE",
+        "Tests verify: upsert, get, list, update summary, delete, cascade behavior",
+        "Typecheck passes"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": "Reference architecture doc §4.1 for files, symbols, dependencies table schemas."
+    },
+    {
+      "id": "US-007",
+      "title": "Vector storage DAO",
+      "description": "As a developer, I need operations for sqlite-vec virtual tables so that embeddings can be stored and queried for nearest-neighbor search.",
+      "acceptanceCriteria": [
+        "storage/vectors.py provides: upsert_file_embedding(db, file_id, embedding: list[float]), upsert_symbol_embedding(db, symbol_id, embedding: list[float]), delete_file_embedding(db, file_id), delete_symbol_embedding(db, symbol_id), search_file_embeddings(db, query_embedding, limit) -> list[tuple[int, float]], search_symbol_embeddings(db, query_embedding, limit) -> list[tuple[int, float]]",
+        "Search functions use sqlite-vec's vec_distance_cosine with embedding MATCH ? and ORDER BY distance",
+        "Embeddings are stored as FLOAT[384] vectors",
+        "Tests verify: insert embedding, search returns nearest neighbors, delete removes entry",
+        "Typecheck passes"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": "Reference architecture doc §4.2 for sqlite-vec virtual table schema and query patterns."
+    },
+    {
+      "id": "US-008",
+      "title": "Git operations wrapper",
+      "description": "As a developer, I need an async subprocess git wrapper so that core services can clone repos, get HEAD, compute diffs, and list files without depending on gitpython.",
+      "acceptanceCriteria": [
+        "git/operations.py defines GitOperations class with __init__(config: Settings)",
+        "clone(url, target_dir) runs git clone via asyncio.create_subprocess_exec, raises GitAuthError on auth failure (detects 'Permission denied' or 'Authentication failed' in stderr), raises GitError on other failures",
+        "get_head_commit(repo_path) returns current HEAD SHA via git rev-parse HEAD",
+        "get_default_branch(repo_path) returns default branch name",
+        "get_remote_url(repo_path) returns origin remote URL or None",
+        "diff_commits(repo_path, from_sha, to_sha) returns DiffResult dataclass with added/modified/deleted/renamed lists by parsing git diff --name-status output",
+        "list_tracked_files(repo_path) returns list of tracked file paths via git ls-files",
+        "is_git_repo(path) returns True if path contains a .git directory",
+        "All methods raise GitError with stderr content on unexpected failures",
+        "Tests verify: HEAD commit parsing, diff parsing (added/modified/deleted/renamed), is_git_repo check",
+        "Typecheck passes"
+      ],
+      "priority": 8,
+      "passes": false,
+      "notes": "Reference architecture doc §3.8. Use asyncio.create_subprocess_exec, not gitpython."
+    },
+    {
+      "id": "US-009",
+      "title": "Analysis data models and fallback parser",
+      "description": "As a developer, I need the analysis data models (FileAnalysis, SymbolInfo, etc.) and a fallback regex-based parser for languages without tree-sitter support.",
+      "acceptanceCriteria": [
+        "analysis/models.py defines: FileAnalysis(path, language, imports, symbols, lines_of_code, token_count), ImportInfo(module, names), SymbolInfo(name, kind, signature, docstring, start_line, end_line, parameters, return_type, calls), ParameterInfo(name, type_annotation, default_value) as dataclasses",
+        "SymbolInfo.kind is Literal['function', 'method', 'class', 'variable', 'constant']",
+        "analysis/fallback_parser.py defines FallbackParser with parse(content: str, language: str|None) -> FileAnalysis",
+        "FallbackParser extracts: lines matching def/function/class/func/fn patterns as symbols, import/require/include lines as imports, first contiguous comment block as file docstring, line count",
+        "Token count is computed via tiktoken (cl100k_base encoding)",
+        "Tests verify: Python function extraction, JavaScript function extraction, import extraction, line count, token count",
+        "Typecheck passes"
+      ],
+      "priority": 9,
+      "passes": false,
+      "notes": "Reference architecture doc §3.4.3 and §3.4.4."
+    },
+    {
+      "id": "US-010",
+      "title": "Tree-sitter parser and unified dispatcher",
+      "description": "As a developer, I need a tree-sitter AST parser with on-demand grammar loading and a unified Parser dispatcher that falls back to regex when tree-sitter is unavailable.",
+      "acceptanceCriteria": [
+        "analysis/tree_sitter.py defines TreeSitterParser with is_language_supported(language) -> bool and parse(content, language) -> FileAnalysis",
+        "Grammar loading is on-demand: attempts to import tree_sitter_python, tree_sitter_javascript etc. on first call per language; caches result",
+        "If grammar import fails (ImportError), reports language as unsupported",
+        "Extracts: function/method signatures with parameters and return types, class definitions with bases, import statements, docstrings",
+        "analysis/parser.py defines Parser with __init__(tree_sitter_parser, fallback_parser), parse_file(path, content, language) -> FileAnalysis, detect_language(path) -> str|None",
+        "detect_language maps file extensions to language names (.py->python, .js->javascript, .ts->typescript, .go->go, .rs->rust, .java->java, .rb->ruby, .cpp/.cc/.h->cpp, etc.)",
+        "parse_file: detects language, tries tree-sitter, falls back to FallbackParser if unsupported",
+        "Tests verify: language detection from extensions, tree-sitter parse of Python file (if grammar installed), fallback when grammar unavailable",
+        "Typecheck passes"
+      ],
+      "priority": 10,
+      "passes": false,
+      "notes": "Reference architecture doc §3.4.1 and §3.4.2. Grammars are optional pip extras."
+    },
+    {
+      "id": "US-011",
+      "title": "LLM rate limiter, prompts, and provider",
+      "description": "As a developer, I need the LLM integration layer: rate limiter for concurrency control, prompt templates for all three tiers, and the provider abstraction with Anthropic implementation.",
+      "acceptanceCriteria": [
+        "llm/rate_limiter.py defines RateLimiter with __init__(max_concurrent: int, base_delay: float, max_delay: float), acquire(), release(), handle_rate_limit() methods using asyncio.Semaphore and exponential backoff with jitter",
+        "llm/prompts.py defines tier1_prompt(repo_name, directory_tree, file_summaries, technologies) -> str, tier2_prompt(file_path, content, symbols) -> str, tier3_prompt(symbol, file_context) -> str",
+        "Each prompt template instructs the LLM to respond in structured markdown format",
+        "Tier 2 prompt asks for: purpose summary, public interfaces, dependencies, role classification",
+        "Tier 3 prompt asks for: description, parameter details, return type, call relationships",
+        "llm/provider.py defines abstract LLMProvider with summarize(prompt, system) -> str and summarize_batch(prompts, system) -> list[str]",
+        "AnthropicProvider implements LLMProvider using the anthropic SDK with configurable api_key and model",
+        "summarize_batch uses RateLimiter for concurrency control and retries on RateLimitError with exponential backoff",
+        "Tests verify: rate limiter concurrency limiting, prompt templates produce non-empty strings, AnthropicProvider initialization",
+        "Typecheck passes"
+      ],
+      "priority": 11,
+      "passes": false,
+      "notes": "Reference architecture doc §3.5. Default model: claude-sonnet-4-5-20250929. Default concurrency: 5."
+    },
+    {
+      "id": "US-012",
+      "title": "Embeddings module",
+      "description": "As a developer, I need an Embedder class that wraps sentence-transformers for local embedding generation with lazy model loading.",
+      "acceptanceCriteria": [
+        "embeddings/embedder.py defines Embedder class with MODEL_NAME = 'all-MiniLM-L6-v2' and DIMENSIONS = 384",
+        "Model is lazily loaded on first call to embed() or embed_batch() — not at construction time",
+        "embed(text: str) -> list[float] returns a 384-dimension vector",
+        "embed_batch(texts: list[str]) -> list[list[float]] returns vectors for all inputs",
+        "Returned vectors are normalized (suitable for cosine similarity)",
+        "If model download fails, raises EmbeddingError with helpful message",
+        "Tests verify: embed returns 384-dim vector, embed_batch returns correct count, lazy loading (model not loaded until first call)",
+        "Typecheck passes"
+      ],
+      "priority": 12,
+      "passes": false,
+      "notes": "Reference architecture doc §3.6. CPU-only, ~23MB download on first use."
+    },
+    {
+      "id": "US-013",
+      "title": "RepoManager core service",
+      "description": "As a developer, I need RepoManager to handle repository lifecycle (clone, register local, list, get, remove) so that CLI and MCP can manage repos.",
+      "acceptanceCriteria": [
+        "core/repo_manager.py defines RepoManager with __init__(db, git, config)",
+        "add_remote(url) clones repo to config.repos_dir/<name>/, records in DB, returns Repository. Name derived from URL basename minus .git suffix",
+        "add_local(path) validates path is a git repo, records in DB without cloning, returns Repository",
+        "Both add methods raise RepositoryAlreadyExistsError if repo name already registered",
+        "list_repos() returns all registered repositories with their status",
+        "get_repo(name) returns Repository or raises RepositoryNotFoundError",
+        "remove_repo(name) deletes from DB (does not delete cloned files)",
+        "URL detection: contains '://' or starts with 'git@' → add_remote; else → add_local",
+        "Tests verify: add remote (mocked git clone), add local, duplicate detection, list, get, remove, URL vs path detection",
+        "Typecheck passes"
+      ],
+      "priority": 13,
+      "passes": false,
+      "notes": "Reference architecture doc §3.3.1."
+    },
+    {
+      "id": "US-014",
+      "title": "ContextStore and SearchEngine core services",
+      "description": "As a developer, I need ContextStore to read indexed context and SearchEngine to perform semantic similarity search so that CLI and MCP can query the index.",
+      "acceptanceCriteria": [
+        "core/context_store.py defines ContextStore with __init__(db)",
+        "get_repo_overview(repo_id) returns Tier 1 overview string from repo_overviews table, or None",
+        "get_file_context(repo_id, file_path) returns FileContext dataclass (summary, role, imports, symbols, LOC, token_count) or None",
+        "get_symbol_detail(repo_id, symbol_name) returns SymbolDetail dataclass (signature, summary, parameters, return_type, calls, file_path, start_line) or None",
+        "get_repo_status(repo_id) returns RepoStatus dataclass (indexed_commit, current_head via git, is_stale, files_indexed, symbols_indexed, total_tokens, last_indexed_at)",
+        "core/search_engine.py defines SearchEngine with __init__(db, embedder)",
+        "search(repo_id, query, max_results=10) embeds query, searches vec_file_embeddings and vec_symbol_embeddings, merges and ranks by cosine similarity, returns list[SearchResult]",
+        "SearchResult has: kind (file|symbol), path, name, summary, score",
+        "Tests verify: get_repo_overview returns stored overview, search returns ranked results, empty index returns empty list",
+        "Typecheck passes"
+      ],
+      "priority": 14,
+      "passes": false,
+      "notes": "Reference architecture doc §3.3.4 and §3.3.5."
+    },
+    {
+      "id": "US-015",
+      "title": "Indexer — full index pipeline",
+      "description": "As a developer, I need the Indexer to orchestrate the 9-step full indexing pipeline so that repositories can be analyzed, summarized, and embedded.",
+      "acceptanceCriteria": [
+        "core/indexer.py defines Indexer with __init__(db, git, parser, llm, embedder, config)",
+        "index(repo, path_filter=None, dry_run=False, on_progress=None) -> IndexResult",
+        "Step 1: discovers files via git ls-files + IgnoreFilter + path_filter",
+        "Step 2: parses each file via Parser (tree-sitter or fallback)",
+        "Step 3: upserts file/symbol/dependency records, commits per batch",
+        "Steps 4-5: LLM summarizes Tier 2 (file summaries) via rate-limited batch, stores results",
+        "Steps 6-7: LLM summarizes Tier 3 (symbol summaries) for functions and classes, stores results",
+        "Step 8: generates embeddings for file and symbol summaries, stores in sqlite-vec",
+        "Step 9: generates Tier 1 overview via single LLM call, stores in repo_overviews, updates indexed_commit",
+        "dry_run=True runs Steps 1-2 only and returns estimated LLM calls and token counts without API calls",
+        "on_progress callback called with (current, total, file_path) for progress reporting",
+        "Interrupt-resumable: per-batch commits, re-run skips files already indexed for current commit",
+        "Returns IndexResult(files_indexed, symbols_extracted, llm_calls_made, tokens_used, duration_seconds, commit_sha)",
+        "Typecheck passes"
+      ],
+      "priority": 15,
+      "passes": false,
+      "notes": "Reference architecture doc §3.3.2 and §5.1 for the full pipeline specification."
+    },
+    {
+      "id": "US-016",
+      "title": "Syncer — incremental sync pipeline",
+      "description": "As a developer, I need the Syncer to orchestrate the 7-step incremental sync pipeline so that index updates are efficient when commits change.",
+      "acceptanceCriteria": [
+        "core/syncer.py defines Syncer with __init__(db, git, parser, llm, embedder, config)",
+        "sync(repo, path_filter=None, dry_run=False) -> SyncResult",
+        "Step 1: compares indexed_commit with current HEAD; returns already_current=True if equal",
+        "Step 2: computes git diff, applies IgnoreFilter and path_filter",
+        "Step 3: deletes file/symbol/dependency/vector records for deleted files",
+        "Step 4: re-analyzes added + modified files (parse, store structure, LLM Tier 2+3 summaries)",
+        "Step 5: updates embeddings for changed files/symbols, removes vectors for deleted",
+        "Step 6: rebuilds Tier 1 if changed_ratio >= tier1_rebuild_threshold",
+        "Step 7: updates indexed_commit and last_indexed_at",
+        "dry_run=True computes diff and estimates without making LLM calls",
+        "Returns SyncResult(already_current, files_added, files_modified, files_deleted, llm_calls_made, tokens_used, tier1_rebuilt, old_commit, new_commit, duration_seconds)",
+        "Typecheck passes"
+      ],
+      "priority": 16,
+      "passes": false,
+      "notes": "Reference architecture doc §3.3.3 and §5.2 for the sync pipeline specification."
+    },
+    {
+      "id": "US-017",
+      "title": "Application wiring — AppContext and create_app",
+      "description": "As a developer, I need the AppContext dataclass and create_app factory function to wire all components together so that CLI and MCP server can bootstrap the app.",
+      "acceptanceCriteria": [
+        "core/__init__.py defines AppContext dataclass with fields: settings, db, git, parser, llm, embedder, repo_manager, indexer, syncer, context_store, search_engine",
+        "create_app(settings=None) async factory: loads Settings if not provided, creates Database and runs migrations, creates GitOperations, Parser (tree-sitter + fallback), AnthropicProvider, Embedder, RepoManager, ContextStore, SearchEngine, Indexer, Syncer",
+        "Returns fully wired AppContext",
+        "LLM and embedder are constructed but defer heavy init to first use (lazy loading)",
+        "Tests verify: create_app returns AppContext with all fields populated, database is migrated",
+        "Typecheck passes"
+      ],
+      "priority": 17,
+      "passes": false,
+      "notes": "Reference architecture doc §10 for the full wiring specification."
+    },
+    {
+      "id": "US-018",
+      "title": "CLI commands — add, list, status, config",
+      "description": "As a developer, I need the basic CLI commands (add, list, status, config) implemented with Typer so I can manage repos and configuration from the terminal.",
+      "acceptanceCriteria": [
+        "cli/app.py defines a Typer app with name='codetex'",
+        "'codetex add <target>' clones remote URLs or registers local paths, prints success with repo name",
+        "'codetex list' displays table of registered repos with name, remote_url, indexed_commit, last_indexed_at using rich",
+        "'codetex status <repo>' shows: indexed commit, current HEAD, is_stale, files indexed, symbols indexed, total tokens, last sync time",
+        "'codetex config show' displays current Settings as formatted table",
+        "'codetex config set <key> <value>' writes to ~/.codetex/config.toml",
+        "All CodetexError subclasses caught at top level and displayed as 'Error: <message>' with non-zero exit code",
+        "main() function creates app context and runs the Typer app",
+        "Typecheck passes"
+      ],
+      "priority": 18,
+      "passes": false,
+      "notes": "Reference architecture doc §3.1 and §7 for CLI command mapping."
+    },
+    {
+      "id": "US-019",
+      "title": "CLI commands — index, sync, context",
+      "description": "As a developer, I need the index, sync, and context CLI commands so I can build indexes, sync changes, and query context from the terminal.",
+      "acceptanceCriteria": [
+        "'codetex index <repo> [--path P] [--dry-run]' triggers Indexer.index with rich progress bar showing file count/percentage/current file",
+        "index --dry-run shows: files to index, estimated LLM calls, estimated token count, without making API calls",
+        "'codetex sync <repo> [--path P] [--dry-run]' triggers Syncer.sync, displays summary of changes",
+        "sync --dry-run shows what would change and estimated cost",
+        "'codetex context <repo>' returns Tier 1 overview formatted as terminal markdown via rich",
+        "'codetex context <repo> --file <path>' returns Tier 2 file summary",
+        "'codetex context <repo> --symbol <name>' returns Tier 3 symbol detail",
+        "'codetex context <repo> --query <question>' runs semantic search and displays ranked results",
+        "'codetex serve' starts the MCP server (delegates to server/mcp_server.py)",
+        "Typecheck passes"
+      ],
+      "priority": 19,
+      "passes": false,
+      "notes": "Reference architecture doc §3.1 and §7 for CLI command mapping."
+    },
+    {
+      "id": "US-020",
+      "title": "MCP server with 7 tools",
+      "description": "As a developer using an MCP client, I need a FastMCP server exposing 7 tools so that LLMs can query codebase context on demand via stdio transport.",
+      "acceptanceCriteria": [
+        "server/mcp_server.py creates FastMCP('codetex') server",
+        "get_repo_overview(repo_name) tool returns Tier 1 markdown overview",
+        "get_file_context(repo_name, file_path) tool returns Tier 2 file summary",
+        "get_symbol_detail(repo_name, symbol_name) tool returns Tier 3 symbol detail",
+        "search_context(repo_name, query, max_results=10) tool returns ranked search results",
+        "get_repo_status(repo_name) tool returns index status (indexed commit, staleness, file count)",
+        "sync_repo(repo_name) tool triggers incremental sync and returns change summary",
+        "list_repos() tool returns all registered repos with status",
+        "All tools return structured markdown strings suitable for LLM consumption",
+        "Errors return MCP error responses with isError=True and descriptive messages",
+        "Server uses stdio transport and can be configured in Claude Code MCP settings",
+        "Server calls create_app() once at startup and reuses the AppContext",
+        "Typecheck passes"
+      ],
+      "priority": 20,
+      "passes": false,
+      "notes": "Reference architecture doc §3.2 and §6 for tool signatures and response shapes."
+    }
+  ]
+}

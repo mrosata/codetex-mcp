@@ -4,4 +4,70 @@ version = "0.1.0"
 description = "Commit-aware code context manager for LLMs - MCP server and CLI"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    # CLI
+    "typer>=0.9",
+    "rich>=13.0",
+
+    # MCP server
+    "mcp>=1.0",
+
+    # LLM
+    "anthropic>=0.40",
+
+    # Embeddings
+    "sentence-transformers>=3.0",
+
+    # Vector storage
+    "sqlite-vec>=0.1",
+
+    # Async SQLite
+    "aiosqlite>=0.20",
+
+    # Ignore file parsing
+    "pathspec>=0.12",
+
+    # Token counting
+    "tiktoken>=0.7",
+
+    # AST parsing
+    "tree-sitter>=0.23",
+]
+
+[project.scripts]
+codetex = "codetex_mcp.cli.app:main"
+
+[project.optional-dependencies]
+# Tree-sitter grammars — install per-language as needed
+tree-sitter-python = ["tree-sitter-python>=0.23"]
+tree-sitter-javascript = ["tree-sitter-javascript>=0.23"]
+tree-sitter-typescript = ["tree-sitter-typescript>=0.23"]
+tree-sitter-go = ["tree-sitter-go>=0.23"]
+tree-sitter-rust = ["tree-sitter-rust>=0.23"]
+tree-sitter-java = ["tree-sitter-java>=0.23"]
+tree-sitter-ruby = ["tree-sitter-ruby>=0.23"]
+tree-sitter-cpp = ["tree-sitter-cpp>=0.23"]
+
+# All supported grammars
+all-grammars = [
+    "codetex-mcp[tree-sitter-python]",
+    "codetex-mcp[tree-sitter-javascript]",
+    "codetex-mcp[tree-sitter-typescript]",
+    "codetex-mcp[tree-sitter-go]",
+    "codetex-mcp[tree-sitter-rust]",
+    "codetex-mcp[tree-sitter-java]",
+    "codetex-mcp[tree-sitter-ruby]",
+    "codetex-mcp[tree-sitter-cpp]",
+]
+
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=5.0",
+    "ruff>=0.5",
+    "mypy>=1.10",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
