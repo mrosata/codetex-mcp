@@ -749,3 +749,46 @@
 - `server/mcp_server.py` is a minimal stub — just `FastMCP('codetex')`. US-020 will add the 7 tools
 - Next priority: **US-020** (MCP server with 7 tools) in `server/mcp_server.py`
 - Architecture reference: `tasks/architecture.md` §3.2 and §6 for MCP tool signatures
+
+## US-020: MCP server with 7 tools
+
+**Status:** Complete
+**Date:** 2026-03-29
+
+### What was done
+- Replaced the `server/mcp_server.py` stub with full implementation: `FastMCP('codetex')` server with 7 registered tools
+- Module-level `_app_ctx: AppContext | None` with lazy initialization via `_get_ctx()` — calls `create_app()` once on first tool invocation and reuses the context for all subsequent calls
+- **7 tools registered:**
+  1. `get_repo_overview(repo_name)` — returns Tier 1 markdown overview; raises `NoIndexError` → `ValueError` if no index exists
+  2. `get_file_context(repo_name, file_path)` — returns Tier 2 file summary (heading, summary, role, LOC, tokens, symbols list as markdown)
+  3. `get_symbol_detail(repo_name, symbol_name)` — returns Tier 3 symbol detail (signature, file:line, summary, parameters, return type, calls)
+  4. `search_context(repo_name, query, max_results=10)` — returns ranked markdown table of search results (score, kind, path, name, summary)
+  5. `get_repo_status(repo_name)` — returns status as markdown bullet list (indexed commit, current HEAD, staleness, file/symbol counts, total tokens, last indexed)
+  6. `sync_repo(repo_name)` — triggers incremental sync and returns change summary or "Already up to date"; raises `NoIndexError` if no prior index
+  7. `list_repos()` — returns markdown table of all registered repos (name, remote URL, indexed commit, last indexed)
+- All tools return structured markdown strings optimized for LLM consumption
+- Error handling: `CodetexError` caught and re-raised as `ValueError`, which FastMCP wraps as `ToolError` with `isError=True` and descriptive messages
+- Server uses stdio transport via `server.run()` (called from `codetex serve` CLI command)
+
+### Tests added
+- Created `tests/test_server/` directory with `__init__.py` and `test_mcp_server.py`
+- 22 tests across 9 test classes:
+  - `TestCreateServer` (2 tests) — returns FastMCP with name "codetex", all 7 tools registered
+  - `TestGetRepoOverview` (3 tests) — returns overview, no-index raises ToolError, repo-not-found raises ToolError
+  - `TestGetFileContext` (2 tests) — returns full file context, file-not-found raises ToolError
+  - `TestGetSymbolDetail` (2 tests) — returns full symbol detail, symbol-not-found raises ToolError
+  - `TestSearchContext` (3 tests) — returns results table, no results returns message, max_results passed through
+  - `TestGetRepoStatus` (3 tests) — normal status, stale detection, not-indexed status
+  - `TestSyncRepo` (3 tests) — sync with changes, already-current, no-index raises ToolError
+  - `TestListRepos` (2 tests) — repos table, empty list message
+  - `TestGetCtx` (2 tests) — creates app on first call, reuses on second call
+- mypy passes (36 source files, no issues)
+- All 504 tests pass (22 new + 482 existing)
+
+### Notes for next developer
+- `_app_ctx` is a module-level global — `_get_ctx()` creates it lazily. The `autouse` fixture in tests resets it to `None` before each test
+- FastMCP wraps all exceptions raised in tool functions as `ToolError`. Tests use `pytest.raises(ToolError, match=...)` not `ValueError`
+- The error conversion pattern is: `CodetexError` → `ValueError` (in tool function) → `ToolError` (by FastMCP). The `ValueError` message includes the original error message, and `ToolError` message includes the tool name prefix
+- Tools access internal FastMCP `_tool_manager` for testing — this is an implementation detail but the only way to unit-test individual tools without running a full MCP session
+- The `serve` command in CLI was already wired in US-019 to call `create_server().run()` — this story just added the tools to the server
+- **All 20 user stories (US-001 through US-020) are now complete.** The project has full functionality: CLI, MCP server, indexing, syncing, search, and context retrieval

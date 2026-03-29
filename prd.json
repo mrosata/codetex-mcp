@@ -379,8 +379,8 @@
         "Typecheck passes"
       ],
       "priority": 20,
-      "passes": false,
-      "notes": "Reference architecture doc §3.2 and §6 for tool signatures and response shapes."
+      "passes": true,
+      "notes": "Reference architecture doc §3.2 and §6 for tool signatures and response shapes. Completed: server/mcp_server.py with FastMCP('codetex') server and 7 registered tools. Module-level _app_ctx with lazy initialization via _get_ctx() calling create_app() once. get_repo_overview(repo_name) returns Tier 1 markdown overview or raises NoIndexError. get_file_context(repo_name, file_path) returns Tier 2 file summary (heading, summary, role, LOC, tokens, symbols list). get_symbol_detail(repo_name, symbol_name) returns Tier 3 symbol detail (signature, file:line, summary, parameters, return type, calls). search_context(repo_name, query, max_results=10) returns ranked markdown table of search results. get_repo_status(repo_name) returns status with indexed commit, current HEAD, staleness, file/symbol counts, total tokens, last indexed time. sync_repo(repo_name) triggers incremental sync and returns change summary or 'Already up to date'. list_repos() returns markdown table of all registered repos. All tools return structured markdown strings for LLM consumption. Errors raise ValueError which FastMCP wraps as ToolError with isError=True and descriptive messages. Server uses stdio transport via server.run(). AppContext created once and reused across all tool calls. 22 tests across 9 classes covering create_server (name, tool registration), get_repo_overview (overview/no-index/not-found), get_file_context (full/not-found), get_symbol_detail (full/not-found), search_context (results/empty/max_results), get_repo_status (normal/stale/not-indexed), sync_repo (changes/already-current/no-index), list_repos (repos/empty), _get_ctx (create/reuse). mypy passes (36 source files), all 504 tests pass."
     }
   ]
 }
