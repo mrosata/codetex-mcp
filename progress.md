@@ -639,3 +639,36 @@
 - Tests use `indexed_repo` fixture to pre-populate DB with file/symbol/embedding records, simulating a prior full index
 - Next priority: **US-017** (Application wiring — AppContext and create_app) in `core/__init__.py`
 - Architecture reference: `tasks/architecture.md` §10 for the full wiring specification
+
+## US-017: Application wiring — AppContext and create_app
+
+**Status:** Complete
+**Date:** 2026-03-29
+
+### What was done
+- Implemented `src/codetex_mcp/core/__init__.py` with:
+  - `AppContext` dataclass with 11 fields: `settings` (Settings), `db` (Database), `git` (GitOperations), `parser` (Parser), `llm` (LLMProvider), `embedder` (Embedder), `repo_manager` (RepoManager), `indexer` (Indexer), `syncer` (Syncer), `context_store` (ContextStore), `search_engine` (SearchEngine)
+  - `create_app(settings: Settings | None = None) -> AppContext` async factory function that wires the full object graph:
+    - Loads Settings if not provided (via `Settings.load()`)
+    - Creates Database, connects, and runs migrations
+    - Creates GitOperations with settings
+    - Creates Parser with TreeSitterParser + FallbackParser
+    - Creates RateLimiter with `max_concurrent` from settings
+    - Creates AnthropicProvider with API key, model, and rate limiter from settings
+    - Creates Embedder (lazy model loading — no download at construction)
+    - Creates RepoManager, ContextStore, SearchEngine, Indexer, Syncer with proper dependency wiring
+    - Returns fully populated AppContext
+  - LLM and embedder are constructed but defer heavy initialization to first use (lazy loading pattern)
+- Created test suite: `tests/test_core/test_app_context.py` with 7 tests across 2 classes:
+  - `TestAppContext` (1 test) — field access verification
+  - `TestCreateApp` (6 tests) — returns AppContext, all fields populated with correct types, database migrated (schema_version check), uses provided settings, loads default settings when None (via env var override), core tables exist after migration
+- mypy passes (35 source files, no issues)
+- All 436 tests pass (7 new + 429 existing)
+
+### Notes for next developer
+- `settings.db_path` is `Path | None` in the type declaration, but always `Path` after `__post_init__`/`load()`. An `assert settings.db_path is not None` narrows the type for mypy
+- `settings.llm_api_key` is `str | None` but `AnthropicProvider.__init__` requires `str`. We pass `settings.llm_api_key or ""` — the empty string is fine because the client is constructed lazily and only fails on first actual API call (commands like `list`, `status`, `config` never hit the LLM)
+- `create_app` creates a `RateLimiter` wired with `settings.max_concurrent_llm_calls` — this isn't shown in the architecture doc's example but matches the `AnthropicProvider` constructor's optional `rate_limiter` parameter
+- The DB connection is opened and migrations are run eagerly in `create_app` — this is the only "heavy" initialization at startup. LLM client setup and embedding model download are deferred
+- Next priority: **US-018** (CLI commands — add, list, status, config) in `cli/app.py`
+- Architecture reference: `tasks/architecture.md` §3.1 and §7 for CLI command mapping

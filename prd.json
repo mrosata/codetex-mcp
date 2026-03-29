@@ -317,8 +317,8 @@
         "Typecheck passes"
       ],
       "priority": 17,
-      "passes": false,
-      "notes": "Reference architecture doc §10 for the full wiring specification."
+      "passes": true,
+      "notes": "Reference architecture doc §10 for the full wiring specification. Completed: core/__init__.py with AppContext dataclass (settings, db, git, parser, llm, embedder, repo_manager, indexer, syncer, context_store, search_engine fields) and async create_app(settings=None) factory. create_app loads Settings if not provided, creates Database and runs migrations, creates GitOperations, Parser (TreeSitterParser + FallbackParser), AnthropicProvider with RateLimiter (max_concurrent from settings), Embedder, RepoManager, ContextStore, SearchEngine, Indexer, Syncer. LLM and embedder are constructed but defer heavy init to first use (lazy loading). 7 tests covering AppContext fields, create_app return type, all fields populated with correct types, database migrated, settings propagation, default settings when None, tables exist after migration. mypy passes (35 source files), all 436 tests pass."
     },
     {
       "id": "US-018",
