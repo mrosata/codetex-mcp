@@ -158,8 +158,8 @@
         "Typecheck passes"
       ],
       "priority": 9,
-      "passes": false,
-      "notes": "Reference architecture doc §3.4.3 and §3.4.4."
+      "passes": true,
+      "notes": "Reference architecture doc §3.4.3 and §3.4.4. Completed: analysis/models.py with FileAnalysis, SymbolInfo, ImportInfo, ParameterInfo dataclasses (all fields per architecture spec, SymbolInfo.kind is Literal['function','method','class','variable','constant']). analysis/fallback_parser.py with FallbackParser class: regex-based extraction of symbols (def/function/class/func/fn/struct/enum/trait patterns across Python/JS/TS/Go/Rust/Java/C++/Ruby), imports (import/from-import/require/include/use across 9 languages), parameters with type annotations and defaults, docstring extraction, end-line estimation. Token count via tiktoken cl100k_base encoding. 47 tests across 10 classes covering Python/JS/Go/Rust function extraction, import extraction for 9 languages, line count, token count, mixed content. mypy passes (24 source files)."
     },
     {
       "id": "US-010",

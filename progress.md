@@ -279,3 +279,49 @@
 - The `is_git_repo` method catches both `GitError` (for non-git dirs) and `FileNotFoundError` (for nonexistent paths)
 - Next priority: **US-009** (Analysis data models and fallback parser) in `analysis/models.py` and `analysis/fallback_parser.py`
 - Architecture reference: `tasks/architecture.md` §3.4.3 and §3.4.4
+
+## US-009: Analysis data models and fallback parser
+
+**Status:** Complete
+**Date:** 2026-03-29
+
+### What was done
+- Created `src/codetex_mcp/analysis/models.py` with 4 dataclasses per architecture spec:
+  - `ParameterInfo(name, type_annotation, default_value)` — parameter with optional type and default
+  - `SymbolInfo(name, kind, signature, docstring, start_line, end_line, parameters, return_type, calls)` — kind is `Literal['function', 'method', 'class', 'variable', 'constant']`
+  - `ImportInfo(module, names)` — import with module and optional imported names
+  - `FileAnalysis(path, language, imports, symbols, lines_of_code, token_count)` — result of parsing a source file
+- Created `src/codetex_mcp/analysis/fallback_parser.py` with `FallbackParser` class:
+  - `parse(content: str, language: str | None) -> FileAnalysis` — main entry point
+  - Symbol extraction via 9 regex patterns covering: Python `def`/`class`, JavaScript/TypeScript `function`/`class` (with `export`/`async`), Go `func` (including method receivers), Rust `fn`/`struct`/`enum`/`trait` (with `pub`), Java/C++ method signatures, Ruby `def`
+  - Import extraction via 10 regex patterns covering: Python `import`/`from..import`, JavaScript `import..from`/`require`, Go `import`, Rust `use`, C/C++ `#include`, Ruby `require`/`require_relative`, Java `import` (including `static`)
+  - Parameter parsing with type annotations, default values, and `self`/`cls` filtering
+  - Docstring extraction (Python triple-quoted strings following symbol definitions)
+  - End-line estimation using indentation (Python) or brace counting (C-like languages)
+  - Token counting via tiktoken `cl100k_base` encoding (lazy-loaded encoder)
+  - Line counting via `str.splitlines()`
+- Import pattern ordering: more specific patterns (Java with semicolons, JS with quotes, Go with quotes) ordered before generic Python `import` pattern to avoid false matches
+- Created test suites:
+  - `tests/test_analysis/test_models.py` — 11 tests across 4 classes (ParameterInfo, SymbolInfo, ImportInfo, FileAnalysis)
+  - `tests/test_analysis/test_fallback_parser.py` — 36 tests across 10 classes:
+    - `TestPythonFunctionExtraction` (8 tests) — simple/parameterized/default-param/class/multiple/self-filtering/docstring/end-line
+    - `TestJavaScriptFunctionExtraction` (5 tests) — simple/async/export/class/export-class
+    - `TestGoFunctionExtraction` (3 tests) — simple/return-type/method-receiver
+    - `TestRustFunctionExtraction` (3 tests) — simple/pub-return/struct
+    - `TestImportExtraction` (9 tests) — Python import/from-import, JS import/require, Go, Rust, C include, Ruby require, Java static import
+    - `TestLineCount` (3 tests) — multi-line/empty/single-line
+    - `TestTokenCount` (3 tests) — nonzero/matches-tiktoken/empty
+    - `TestLanguageNone` (2 tests) — unknown language still parses/path set to empty
+    - `TestMixedContent` (1 test) — full file with imports, functions, classes, docstrings
+- mypy passes (24 source files, no issues)
+- All 193 tests pass (47 new + 146 existing)
+
+### Notes for next developer
+- The `FallbackParser.parse()` sets `path=""` — the caller (unified `Parser` in US-010) is responsible for setting the actual file path on the returned `FileAnalysis`
+- Import pattern ordering matters: Java imports (with semicolons) must come before generic Python imports to avoid `import static` being parsed as a Python import of module `static`
+- The tiktoken encoder is lazily loaded as a module-level singleton (`_encoder`) to avoid repeated initialization overhead
+- Symbol end-line estimation is approximate: uses indentation for Python-like languages, brace counting for C-like languages
+- `_parse_python_params` handles `self`/`cls` filtering, `*args`/`**kwargs` name cleanup, type annotations, and default values
+- The `SymbolInfo.kind` field uses a `Literal` type, but the fallback parser only produces `"function"` and `"class"` kinds — `"method"`, `"variable"`, and `"constant"` kinds will come from the tree-sitter parser (US-010)
+- Next priority: **US-010** (Tree-sitter parser and unified dispatcher) in `analysis/tree_sitter.py` and `analysis/parser.py`
+- Architecture reference: `tasks/architecture.md` §3.4.1 and §3.4.2
