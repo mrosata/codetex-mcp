@@ -548,3 +548,49 @@
 - Test helpers `_insert_file_with_embedding` and `_insert_symbol_with_embedding` directly insert into both regular and vector tables — no need for the full indexing pipeline
 - Next priority: **US-015** (Indexer — full index pipeline) in `core/indexer.py`
 - Architecture reference: `tasks/architecture.md` §3.3.2 and §5.1
+
+## US-015: Indexer — full index pipeline
+
+**Status:** Complete
+**Date:** 2026-03-29
+
+### What was done
+- Created `src/codetex_mcp/core/indexer.py` with `Indexer` class orchestrating the 9-step full indexing pipeline:
+  - `__init__(db, git, parser, llm, embedder, config)` — dependency injection with Database/GitOperations/Parser/LLMProvider/Embedder/Settings
+  - `index(repo, path_filter=None, dry_run=False, on_progress=None) -> IndexResult` — main entry point
+  - Step 1 (`_discover_files`): discovers files via `git ls-files` + `IgnoreFilter` + optional `path_filter` prefix
+  - Step 2 (`_parse_files`): parses each file via `Parser` (tree-sitter or fallback), calls `on_progress(current, total, file_path)` callback
+  - Step 3 (`_store_structure`): upserts file records, deletes old symbols/dependencies then re-inserts, stores dependency edges from imports. Handles `ON CONFLICT` lastrowid=0 by querying back for the actual file_id
+  - Steps 4-5 (`_summarize_tier2`): LLM summarizes Tier 2 (file summaries) via rate-limited `summarize_batch`, stores summary + role classification extracted from summary text
+  - Steps 6-7 (`_summarize_tier3`): LLM summarizes Tier 3 (symbol summaries) for functions/methods/classes only (skips variables/constants)
+  - Step 8 (`_generate_embeddings`): generates embeddings for file and symbol summaries via `embed_batch`, stores in sqlite-vec
+  - Step 9 (`_generate_tier1`): generates Tier 1 overview via single LLM call with directory tree and file summaries, stores in `repo_overviews` (upsert), updates `indexed_commit`
+  - `dry_run=True` runs Steps 1-2 only, returns estimates (files, symbols, estimated LLM calls, token counts) without making API calls or DB writes
+  - Error handling: wraps unexpected exceptions in `IndexError`, passes through `IndexError` directly
+- Data models:
+  - `IndexResult(files_indexed, symbols_extracted, llm_calls_made, tokens_used, duration_seconds, commit_sha)` — returned from `index()`
+  - `_FileWork(path, content, analysis, file_id, symbol_ids)` — internal work item tracking parsed file through the pipeline
+- Helper functions: `_imports_to_json`, `_params_to_json`, `_extract_role`, `_build_directory_tree`, `_render_tree`
+- Created test suite: `tests/test_core/test_indexer.py` with 39 tests across 10 classes:
+  - `TestIndexerInit` (1 test) — dependency injection
+  - `TestFullIndex` (15 tests) — full pipeline: files/symbols/deps stored, tier2/tier3/tier1 LLM calls made, summaries stored, embeddings stored (file + symbol), repo overview stored, indexed commit updated, LLM call count, token count
+  - `TestDryRun` (5 tests) — returns estimates, no LLM calls, no DB writes, no embeddings
+  - `TestPathFilter` (2 tests) — restricts files, no-match returns 0
+  - `TestProgressCallback` (1 test) — callback invoked with correct (current, total, path) args
+  - `TestErrorHandling` (2 tests) — wraps unexpected errors, passes through IndexError
+  - `TestTier3SymbolFiltering` (1 test) — skips variable symbols
+  - `TestReindex` (1 test) — re-indexing upserts, not duplicates
+  - `TestHelpers` (9 tests) — JSON serialization, role extraction, directory tree building
+  - `TestIndexResult` (2 tests) — dataclass field access
+- mypy passes (34 source files, no issues)
+- All 400 tests pass (39 new + 361 existing)
+
+### Notes for next developer
+- **Re-index safety:** On re-index, `upsert_file` uses `ON CONFLICT(repo_id, path) DO UPDATE` which may return `lastrowid=0`. The Indexer detects this and queries back via `get_file()` to get the correct file_id. Old symbols and dependencies are deleted before re-inserting to prevent duplicates
+- **Role extraction:** `_extract_role` searches the Tier 2 summary text for role keywords (entry_point, core_logic, utility, model, configuration, test, documentation) — defaults to "utility" if none found
+- **Tier 3 filtering:** Only symbols with kind in `("function", "method", "class")` get Tier 3 summaries — variables and constants are skipped to save LLM calls
+- **Embeddings:** Uses `embed_batch` for efficiency. File summaries default to file path if no summary exists. Symbol summaries default to `"{kind} {name}: {signature}"` if no summary exists
+- **Directory tree:** `_build_directory_tree` builds a tree-style visualization with Unicode box-drawing characters (├── └── │)
+- Tests mock all external dependencies (git, parser, LLM, embedder) — no real API calls, file system is limited to tmp_path
+- Next priority: **US-016** (Syncer — incremental sync pipeline) in `core/syncer.py`
+- Architecture reference: `tasks/architecture.md` §3.3.3 and §5.2
