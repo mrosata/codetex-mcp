@@ -594,3 +594,48 @@
 - Tests mock all external dependencies (git, parser, LLM, embedder) — no real API calls, file system is limited to tmp_path
 - Next priority: **US-016** (Syncer — incremental sync pipeline) in `core/syncer.py`
 - Architecture reference: `tasks/architecture.md` §3.3.3 and §5.2
+
+## US-016: Syncer — incremental sync pipeline
+
+**Status:** Complete
+**Date:** 2026-03-29
+
+### What was done
+- Created `src/codetex_mcp/core/syncer.py` with `Syncer` class orchestrating the 7-step incremental sync pipeline:
+  - `__init__(db, git, parser, llm, embedder, config)` — dependency injection with Database/GitOperations/Parser/LLMProvider/Embedder/Settings
+  - `sync(repo, path_filter=None, dry_run=False) -> SyncResult` — main entry point
+  - Step 1 (`sync`): compares `repo.indexed_commit` with current HEAD via `git.get_head_commit()`; returns `already_current=True` if equal
+  - Step 2 (`_apply_filters`): computes git diff via `git.diff_commits()`, applies `IgnoreFilter` to added/modified/deleted/renamed lists, then applies optional `path_filter` prefix
+  - Step 3 (`_delete_removed`): for each deleted file, deletes symbol embeddings first, then file embedding, then the file record (which cascades to symbols and dependencies)
+  - Step 4 (`_parse_files` + `_store_structure` + `_summarize_tier2` + `_summarize_tier3`): re-analyzes added + modified files — parses AST, stores file/symbol/dependency records, LLM summarizes Tier 2 (file summaries) and Tier 3 (symbol summaries for functions/methods/classes)
+  - Step 5 (`_update_embeddings`): re-embeds changed file summaries and their symbol summaries using `embed()` per item (not batch, since only changed files need updating)
+  - Step 6 (conditional Tier 1 rebuild): computes `changed_ratio = total_changed / total_files`; if >= `tier1_rebuild_threshold`, regenerates Tier 1 overview via single LLM call
+  - Step 7: updates `indexed_commit` and `last_indexed_at` in repositories table
+  - `dry_run=True` computes diff and returns estimates without making LLM calls or DB writes
+- Reuses helper functions from `core/indexer.py`: `_extract_role`, `_imports_to_json`, `_params_to_json`, `_build_directory_tree` — avoids code duplication
+- Data models:
+  - `SyncResult(already_current, files_added, files_modified, files_deleted, llm_calls_made, tokens_used, tier1_rebuilt, old_commit, new_commit, duration_seconds)` — returned from `sync()`
+  - `_FileWork(path, content, analysis, file_id, symbol_ids)` — internal work item tracking parsed file through the pipeline
+- Error handling: wraps unexpected exceptions in `IndexError`, passes through `IndexError` directly
+- Created test suite: `tests/test_core/test_syncer.py` with 29 tests across 9 classes:
+  - `TestSyncerInit` (1 test) — dependency injection
+  - `TestAlreadyCurrent` (2 tests) — returns already_current, no diff called
+  - `TestFullSync` (12 tests) — full pipeline: deletes removed files/symbols/embeddings, stores added files, updates modified files, LLM Tier 2+3 calls, embedding generation, indexed commit update, LLM call count, token count
+  - `TestTier1Rebuild` (3 tests) — rebuilt when ratio exceeds threshold, not rebuilt when below threshold, stores overview
+  - `TestDryRun` (5 tests) — returns estimates, no LLM calls, no DB writes, no embeddings, estimates LLM calls
+  - `TestPathFilter` (2 tests) — restricts scope, no-match returns zeroes
+  - `TestErrorHandling` (2 tests) — wraps unexpected errors, passes through IndexError
+  - `TestNoIndex` (1 test) — sync with no prior index (indexed_commit=None) works
+  - `TestSyncResult` (1 test) — dataclass field access
+- mypy passes (35 source files, no issues)
+- All 429 tests pass (29 new + 400 existing)
+
+### Notes for next developer
+- The Syncer reuses helper functions from `core/indexer.py` (`_extract_role`, `_imports_to_json`, `_params_to_json`, `_build_directory_tree`) to avoid code duplication. If these helpers need changes, update them in `indexer.py` and both modules benefit
+- **Embedding strategy difference from Indexer:** The Syncer uses `embed()` per-file (not `embed_batch`) because it only processes changed files. The Indexer uses `embed_batch` for the entire repo. This is intentional — batch is more efficient for full index, per-item is simpler for incremental updates
+- **Deletion order matters:** Symbol embeddings must be deleted before the file record, because `delete_file` cascades to symbols, which would leave orphan symbol embeddings in the vec table (sqlite-vec virtual tables don't participate in foreign key cascades)
+- **Tier 1 rebuild threshold:** Uses `config.tier1_rebuild_threshold` (default 0.10 = 10%). The ratio is `(added + modified + deleted) / total_files_after_sync`. High ratios (many changes) trigger a rebuild; small changes (e.g., fixing one file in a 100-file repo) skip it to save LLM calls
+- **No prior index edge case:** If `indexed_commit` is None (never indexed), the Syncer treats old_commit as `""` and proceeds with the diff. This works because `git diff ""..HEAD` will show all files as added
+- Tests use `indexed_repo` fixture to pre-populate DB with file/symbol/embedding records, simulating a prior full index
+- Next priority: **US-017** (Application wiring — AppContext and create_app) in `core/__init__.py`
+- Architecture reference: `tasks/architecture.md` §10 for the full wiring specification

@@ -301,8 +301,8 @@
         "Typecheck passes"
       ],
       "priority": 16,
-      "passes": false,
-      "notes": "Reference architecture doc §3.3.3 and §5.2 for the sync pipeline specification."
+      "passes": true,
+      "notes": "Reference architecture doc §3.3.3 and §5.2 for the sync pipeline specification. Completed: core/syncer.py with Syncer class: __init__(db, git, parser, llm, embedder, config) with Database/GitOperations/Parser/LLMProvider/Embedder/Settings injection. sync(repo, path_filter, dry_run) -> SyncResult orchestrating 7-step pipeline. Step 1: compares indexed_commit with current HEAD, returns already_current=True if equal. Step 2: computes git diff, applies IgnoreFilter + path_filter to added/modified/deleted/renamed. Step 3: deletes file/symbol/dependency/vector records for deleted files (symbol embeddings first, then file embedding, then file record which cascades). Step 4: re-analyzes added+modified files (parse, store structure with upsert, LLM Tier 2+3 summaries). Step 5: updates embeddings per-file using embed() for changed files and their symbols. Step 6: rebuilds Tier 1 if changed_ratio >= tier1_rebuild_threshold. Step 7: updates indexed_commit and last_indexed_at. dry_run=True computes diff and returns estimates without LLM calls or DB writes. Reuses helper functions from indexer (_extract_role, _imports_to_json, _params_to_json, _build_directory_tree). SyncResult dataclass with already_current/files_added/files_modified/files_deleted/llm_calls_made/tokens_used/tier1_rebuilt/old_commit/new_commit/duration_seconds. 29 tests across 9 classes covering constructor, already-current detection, full sync pipeline (delete/add/modify/LLM calls/embeddings/commit update/counts), tier1 rebuild (threshold exceeded/below/stores overview), dry run (estimates/no-LLM/no-DB/no-embeddings), path filter (restrict/no-match), error handling (wraps/passthrough), no-prior-index, SyncResult fields. mypy passes (35 source files), all 429 tests pass."
     },
     {
       "id": "US-017",
