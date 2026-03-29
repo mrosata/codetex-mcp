@@ -197,8 +197,8 @@
         "Typecheck passes"
       ],
       "priority": 11,
-      "passes": false,
-      "notes": "Reference architecture doc §3.5. Default model: claude-sonnet-4-5-20250929. Default concurrency: 5."
+      "passes": true,
+      "notes": "Reference architecture doc §3.5. Completed: llm/rate_limiter.py with RateLimiter class using asyncio.Semaphore for concurrency control, exponential backoff with jitter on rate limits, consecutive rate limit tracking reset on release. llm/prompts.py with tier1_prompt (repo overview with directory tree, file summaries, technologies), tier2_prompt (file summary with source code, extracted symbols, role classification), tier3_prompt (symbol detail with parameters, return type, calls, docstring). llm/provider.py with abstract LLMProvider (summarize, summarize_batch), AnthropicProvider implementation using anthropic AsyncAnthropic client with configurable api_key/model/rate_limiter, error mapping (anthropic.RateLimitError → RateLimitError, anthropic.APIError → LLMError), summarize_batch with concurrent rate-limited calls and automatic retry on rate limit. 51 tests across 9 classes covering rate limiter (acquire/release/blocking/concurrency/backoff/reset/cap), prompts (all three tiers with content validation and placeholder checks), provider (ABC enforcement, init, summarize with/without system prompt, multiple text blocks, error mapping, batch results/empty/retry/concurrency). mypy passes (29 source files), all 296 tests pass."
     },
     {
       "id": "US-012",

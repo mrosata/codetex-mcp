@@ -386,3 +386,54 @@
 - For non-Python languages, the tree-sitter parser uses a generic extractor that captures the first line as signature. Language-specific deep extraction (like Python's parameter parsing) can be added per-language as needed
 - Next priority: **US-011** (LLM rate limiter, prompts, and provider) in `llm/rate_limiter.py`, `llm/prompts.py`, `llm/provider.py`
 - Architecture reference: `tasks/architecture.md` §3.5
+
+## US-011: LLM rate limiter, prompts, and provider
+
+**Status:** Complete
+**Date:** 2026-03-29
+
+### What was done
+- Created `src/codetex_mcp/llm/rate_limiter.py` with `RateLimiter` class:
+  - `__init__(max_concurrent, base_delay, max_delay)` — wraps `asyncio.Semaphore` for concurrency control
+  - `acquire()` — blocks if at max concurrent capacity
+  - `release()` — releases a slot and resets the consecutive rate limit counter
+  - `handle_rate_limit()` — exponential backoff with jitter: `min(base_delay * 2^(n-1), max_delay)` then uniform random jitter in `[0, delay]`
+  - Tracks `_consecutive_rate_limits` for progressive backoff; reset on `release()`
+- Created `src/codetex_mcp/llm/prompts.py` with 3 tier prompt template functions:
+  - `tier1_prompt(repo_name, directory_tree, file_summaries, technologies)` — repo overview prompt with technologies, directory tree, and file summaries; shows "unknown"/"no file summaries" placeholders for empty inputs
+  - `tier2_prompt(file_path, content, symbols)` — file summary prompt with source code, extracted symbols (formatted with parameters, types, defaults, return types, line ranges); asks for Purpose, Public Interface, Dependencies, Role classification
+  - `tier3_prompt(symbol, file_context)` — symbol detail prompt with docstring, parameters, return type, calls, file context; asks for Description, Parameters, Returns, Relationships; includes placeholders for missing fields
+- Created `src/codetex_mcp/llm/provider.py` with:
+  - `LLMProvider` abstract base class with `summarize(prompt, system)` and `summarize_batch(prompts, system)` abstract methods
+  - `AnthropicProvider(api_key, model, rate_limiter)` implementation:
+    - Uses `anthropic.AsyncAnthropic` client with `MessageParam` typed messages
+    - `summarize()` — sends single prompt, extracts text from response content blocks, maps `anthropic.RateLimitError` → `RateLimitError`, `anthropic.APIError` → `LLMError`
+    - `summarize_batch()` — launches concurrent tasks via `asyncio.gather`, each task acquires semaphore slot, retries automatically on rate limit with backoff, releases slot on completion
+    - Default model: `claude-sonnet-4-5-20250929`, accepts custom `RateLimiter` or creates default
+- Created test suites:
+  - `tests/test_llm/test_rate_limiter.py` — 8 tests across 3 classes:
+    - `TestAcquireRelease` (2 tests) — basic acquire/release, blocks at capacity
+    - `TestConcurrencyLimiting` (2 tests) — max active never exceeds limit, all workers complete
+    - `TestHandleRateLimit` (4 tests) — waits on rate limit, consecutive increases, release resets count, delay capped at max
+  - `tests/test_llm/test_prompts.py` — 26 tests across 3 classes:
+    - `TestTier1Prompt` (7 tests) — non-empty, repo name, technologies, directory tree, file summaries, empty tech/summary placeholders
+    - `TestTier2Prompt` (7 tests) — non-empty, file path, content, symbols with params/defaults, empty symbols placeholder, role classification
+    - `TestTier3Prompt` (12 tests) — non-empty, symbol name, parameters, return type, calls, docstring, file context, all placeholder checks, class kind
+  - `tests/test_llm/test_provider.py` — 17 tests across 4 classes:
+    - `TestLLMProviderABC` (3 tests) — cannot instantiate, must implement both methods
+    - `TestAnthropicProviderInit` (4 tests) — api key, custom model, custom rate limiter, default rate limiter
+    - `TestAnthropicProviderSummarize` (6 tests) — text extraction, system prompt passed/omitted, multiple blocks joined, rate limit error, API error
+    - `TestAnthropicProviderSummarizeBatch` (4 tests) — all prompts return results, empty input, retry on rate limit, concurrency respected
+- mypy passes (29 source files, no issues)
+- All 296 tests pass (51 new + 245 existing)
+
+### Notes for next developer
+- `AnthropicProvider` uses `anthropic.types.MessageParam` for typed messages to satisfy mypy's strict overload checking on `messages.create()`
+- The system prompt is passed as a separate keyword arg (not via kwargs dict) to match the Anthropic SDK's typed overloads — using a `dict[str, object]` with `**kwargs` fails mypy's overload resolution
+- `RateLimiter._consecutive_rate_limits` resets to 0 on `release()`, so backoff resets after a successful call
+- `summarize_batch` acquires the semaphore before calling `summarize`, and `summarize` itself does NOT acquire — this avoids double-acquisition deadlocks
+- Rate limit retry in `summarize_batch` is a `while True` loop around `summarize()` — it retries indefinitely until success (the exponential backoff with max_delay prevents tight loops)
+- Provider tests mock `provider._client.messages.create` directly with `AsyncMock` — no real API calls
+- `random.uniform` uses the default PRNG (not cryptographic) for jitter, which is fine for backoff timing
+- Next priority: **US-012** (Embeddings module) in `embeddings/embedder.py`
+- Architecture reference: `tasks/architecture.md` §3.6
