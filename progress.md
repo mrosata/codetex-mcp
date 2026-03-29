@@ -469,3 +469,38 @@
 - `embed_batch([])` returns `[]` immediately without calling `_load_model()` — this avoids unnecessary model initialization
 - Next priority: **US-013** (RepoManager core service) in `core/repo_manager.py`
 - Architecture reference: `tasks/architecture.md` §3.3.1
+
+## US-013: RepoManager core service
+
+**Status:** Complete
+**Date:** 2026-03-29
+
+### What was done
+- Created `src/codetex_mcp/core/repo_manager.py` with `RepoManager` class:
+  - `__init__(db: Database, git: GitOperations, config: Settings)` — dependency injection, no DI framework
+  - `add_remote(url: str) -> Repository` — derives repo name from URL basename (strips `.git` suffix and handles trailing slashes), checks for duplicate before cloning, clones to `config.repos_dir/<name>/`, gets default branch, records in DB via `create_repo` DAO
+  - `add_local(path: Path) -> Repository` — resolves path, validates `is_git_repo`, derives name from `path.name`, fetches remote URL (may be None) and default branch, records in DB
+  - Both add methods raise `RepositoryAlreadyExistsError` on duplicate name, checked before expensive operations (clone)
+  - `list_repos() -> list[Repository]` — delegates to `list_repos` DAO
+  - `get_repo(name: str) -> Repository` — delegates to `get_repo_by_name` DAO, raises `RepositoryNotFoundError` if None
+  - `remove_repo(name: str) -> None` — calls `get_repo` (raises if not found), then `delete_repo` DAO; does NOT delete cloned files on disk
+  - Helper functions: `_is_remote_url(target)` checks for `://` or `git@` prefix; `_repo_name_from_url(url)` handles HTTPS/SSH/trailing slash/`.git` suffix
+- Created test suite: `tests/test_core/test_repo_manager.py` with 23 tests across 8 classes:
+  - `TestIsRemoteUrl` (6 tests) — HTTPS, SSH, git protocol, absolute path, relative path, name only
+  - `TestRepoNameFromUrl` (4 tests) — with/without .git suffix, SSH, trailing slash
+  - `TestAddRemote` (3 tests) — clone+register with correct args, duplicate raises, clone failure propagates
+  - `TestAddLocal` (4 tests) — register with remote URL, without remote, not-a-repo raises GitError, duplicate raises
+  - `TestListRepos` (2 tests) — empty list, list after adding
+  - `TestGetRepo` (2 tests) — existing repo, nonexistent raises RepositoryNotFoundError
+  - `TestRemoveRepo` (2 tests) — remove existing (verified via get_repo failing after), remove nonexistent raises
+- mypy passes (31 source files, no issues)
+- All 338 tests pass (23 new + 315 existing)
+
+### Notes for next developer
+- `RepoManager` uses `AsyncMock(spec=GitOperations)` in tests — no real git subprocess calls. DB fixtures use real SQLite via `Database` with migration
+- `add_remote` checks for duplicate name BEFORE cloning to avoid wasting time on a clone that would fail at DB insert
+- `add_local` calls `path.resolve()` to normalize the path before storing — this ensures consistent `local_path` values regardless of how the path was specified
+- The `_repo_name_from_url` function handles both HTTPS (`/`-separated) and SSH (`:`-separated) URLs by splitting on both
+- `remove_repo` intentionally does NOT delete cloned files from disk — this matches the architecture spec and avoids data loss
+- Next priority: **US-014** (ContextStore and SearchEngine core services) in `core/context_store.py` and `core/search_engine.py`
+- Architecture reference: `tasks/architecture.md` §3.3.4 and §3.3.5

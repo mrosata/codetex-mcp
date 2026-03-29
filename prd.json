@@ -235,8 +235,8 @@
         "Typecheck passes"
       ],
       "priority": 13,
-      "passes": false,
-      "notes": "Reference architecture doc §3.3.1."
+      "passes": true,
+      "notes": "Reference architecture doc §3.3.1. Completed: core/repo_manager.py with RepoManager class: __init__(db, git, config) with Database/GitOperations/Settings injection. add_remote(url) derives repo name from URL basename (strips .git suffix), checks for duplicate before cloning, clones to config.repos_dir/<name>/, gets default branch, records in DB. add_local(path) resolves path, validates is_git_repo, derives name from path basename, gets remote_url and default_branch, records in DB. Both add methods raise RepositoryAlreadyExistsError on duplicate. list_repos() delegates to storage DAO. get_repo(name) returns Repository or raises RepositoryNotFoundError. remove_repo(name) calls get_repo then delete_repo (no file deletion). Helper functions: _is_remote_url (checks for :// or git@ prefix), _repo_name_from_url (handles HTTPS/SSH/trailing slash). 23 tests across 8 classes covering URL detection (HTTPS/SSH/git protocol/local paths), name derivation (with/without .git suffix, SSH, trailing slash), add_remote (clone+register, duplicate, clone failure propagation), add_local (with remote, without remote, not-a-repo, duplicate), list (empty, after adding), get (existing, nonexistent), remove (existing, nonexistent). mypy passes (31 source files), all 338 tests pass."
     },
     {
       "id": "US-014",
