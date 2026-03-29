@@ -356,8 +356,8 @@
         "Typecheck passes"
       ],
       "priority": 19,
-      "passes": false,
-      "notes": "Reference architecture doc §3.1 and §7 for CLI command mapping."
+      "passes": true,
+      "notes": "Reference architecture doc §3.1 and §7 for CLI command mapping. Completed: cli/app.py with 4 new commands (index, sync, context, serve). 'index' command with --path and --dry-run options, rich Progress bar with spinner showing file count and current file via on_progress callback, dry-run displays estimate table (files/symbols/LLM calls/tokens), full run displays result table (files/symbols/LLM calls/tokens/duration/commit). 'sync' command with --path and --dry-run options, detects already-current and prints short message, displays change summary table (added/modified/deleted/LLM calls/tokens/tier1 rebuilt/old→new commit/duration). 'context' command with --file, --symbol, --query options: no flags → Tier 1 overview via rich Markdown, --file → Tier 2 file context (summary/role/LOC/tokens/symbols list), --symbol → Tier 3 symbol detail (signature/file:line/summary/parameters/return type/calls), --query → semantic search results table (score/kind/path/name/summary). 'serve' command imports and runs FastMCP server via create_server(). server/mcp_server.py stub with create_server() returning FastMCP('codetex') instance (full tool registration deferred to US-020). All commands follow existing pattern: async inner function with try/finally db.close, CodetexError caught and displayed. 22 new tests across 5 classes covering index (full/dry-run/path-filter/not-found/db-close), sync (changes/already-current/dry-run/path-filter/not-found/db-close), context (overview/not-indexed/file/file-not-found/symbol/symbol-not-found/search/search-empty/not-found/db-close), serve (creates-and-runs-server). mypy passes (36 source files), all 482 tests pass."
     },
     {
       "id": "US-020",

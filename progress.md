@@ -712,3 +712,40 @@
 - Tests use `typer.testing.CliRunner` with mocked `_get_app` — no real database, git operations, or file system
 - Next priority: **US-019** (CLI commands — index, sync, context, serve) in `cli/app.py`
 - Architecture reference: `tasks/architecture.md` §3.1 and §7 for CLI command mapping
+
+## US-019: CLI commands — index, sync, context, serve
+
+**Status:** Complete
+**Date:** 2026-03-29
+
+### What was done
+- Added 4 new commands to `cli/app.py`: `index`, `sync`, `context`, `serve`
+- **`codetex index <repo> [--path P] [--dry-run]`**: Triggers `Indexer.index` with rich Progress bar (spinner + file count + current file). `--dry-run` runs estimation only and displays a summary table (files to index, symbols found, estimated LLM calls, estimated tokens). Full run displays results table (files indexed, symbols extracted, LLM calls, tokens used, duration, commit SHA)
+- **`codetex sync <repo> [--path P] [--dry-run]`**: Triggers `Syncer.sync`. Detects `already_current` and prints "Already up to date." Otherwise displays change summary table (files added/modified/deleted, LLM calls, tokens, tier1 rebuilt, old→new commit, duration). `--dry-run` shows estimates
+- **`codetex context <repo> [--file F] [--symbol S] [--query Q]`**: Multi-mode context query:
+  - No flags → Tier 1 overview rendered as rich Markdown
+  - `--file` → Tier 2 file context (summary, role, LOC, tokens, symbols list)
+  - `--symbol` → Tier 3 symbol detail (signature, file:line, summary, parameters, return type, calls)
+  - `--query` → Semantic search via SearchEngine, results in scored table (score, kind, path, name, summary)
+  - Missing file/symbol returns exit code 1 with descriptive error
+  - Missing index returns "No index found" message
+- **`codetex serve`**: Imports and runs FastMCP server via `create_server()` from `server/mcp_server.py`
+- Created `server/mcp_server.py` with `create_server()` factory returning `FastMCP('codetex')` (tool registration deferred to US-020)
+- Added `rich.markdown.Markdown` and `rich.progress.Progress/SpinnerColumn/TextColumn` imports
+
+### Tests added
+- 22 new tests across 5 test classes in `tests/test_cli/test_app.py`:
+  - `TestIndexCommand` (5 tests) — full index, dry-run, path filter, repo not found, db close
+  - `TestSyncCommand` (6 tests) — changes summary, already current, dry-run, path filter, repo not found, db close
+  - `TestContextCommand` (10 tests) — overview, not-indexed, file context, file not found, symbol detail, symbol not found, search results, search empty, repo not found, db close
+  - `TestServeCommand` (1 test) — creates and runs server
+- mypy passes (36 source files, no issues)
+- All 482 tests pass (22 new + 460 existing)
+
+### Notes for next developer
+- The `index` command uses `on_progress` callback to update the rich Progress bar. The callback receives `(current, total, file_path)` and updates the progress task
+- The `serve` command uses a lazy import of `create_server` inside the function body to avoid importing MCP server code unless needed
+- The `context` command prioritizes `--query` > `--file` > `--symbol` > overview when multiple flags are given
+- `server/mcp_server.py` is a minimal stub — just `FastMCP('codetex')`. US-020 will add the 7 tools
+- Next priority: **US-020** (MCP server with 7 tools) in `server/mcp_server.py`
+- Architecture reference: `tasks/architecture.md` §3.2 and §6 for MCP tool signatures

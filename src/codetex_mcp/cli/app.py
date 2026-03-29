@@ -9,6 +9,8 @@ from pathlib import Path
 
 import typer
 from rich.console import Console
+from rich.markdown import Markdown
+from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 
 from codetex_mcp.config.settings import Settings
@@ -140,6 +142,198 @@ def status(repo_name: str = typer.Argument(help="Name of the repository")) -> No
         _run(_status())
     except CodetexError as exc:
         _handle_error(exc)
+
+
+@app.command()
+def index(
+    repo_name: str = typer.Argument(help="Name of the repository"),
+    path: str | None = typer.Option(None, "--path", "-p", help="Restrict to files under this path prefix"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show estimated work without making API calls"),
+) -> None:
+    """Build a full index for a repository."""
+
+    async def _index() -> None:
+        ctx = await _get_app()
+        try:
+            repo = await ctx.repo_manager.get_repo(repo_name)
+
+            if dry_run:
+                result = await ctx.indexer.index(repo, path_filter=path, dry_run=True)
+                table = Table(title="Dry Run — Index Estimate")
+                table.add_column("Metric", style="bold")
+                table.add_column("Value")
+                table.add_row("Files to index", str(result.files_indexed))
+                table.add_row("Symbols found", str(result.symbols_extracted))
+                table.add_row("Estimated LLM calls", str(result.llm_calls_made))
+                table.add_row("Estimated tokens", f"{result.tokens_used:,}")
+                console.print(table)
+                return
+
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                TextColumn("{task.completed}/{task.total}"),
+                console=console,
+            ) as progress:
+                task_id = progress.add_task("Indexing...", total=None)
+
+                def on_progress(current: int, total: int, file_path: str) -> None:
+                    progress.update(task_id, total=total, completed=current, description=f"Indexing {file_path}")
+
+                result = await ctx.indexer.index(repo, path_filter=path, on_progress=on_progress)
+
+            table = Table(title="Index Complete")
+            table.add_column("Metric", style="bold")
+            table.add_column("Value")
+            table.add_row("Files indexed", str(result.files_indexed))
+            table.add_row("Symbols extracted", str(result.symbols_extracted))
+            table.add_row("LLM calls", str(result.llm_calls_made))
+            table.add_row("Tokens used", f"{result.tokens_used:,}")
+            table.add_row("Duration", f"{result.duration_seconds:.1f}s")
+            table.add_row("Commit", result.commit_sha[:12])
+            console.print(table)
+        finally:
+            await ctx.db.close()
+
+    try:
+        _run(_index())
+    except CodetexError as exc:
+        _handle_error(exc)
+
+
+@app.command()
+def sync(
+    repo_name: str = typer.Argument(help="Name of the repository"),
+    path: str | None = typer.Option(None, "--path", "-p", help="Restrict to files under this path prefix"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show what would change without making API calls"),
+) -> None:
+    """Incremental sync — update index for new commits."""
+
+    async def _sync() -> None:
+        ctx = await _get_app()
+        try:
+            repo = await ctx.repo_manager.get_repo(repo_name)
+            result = await ctx.syncer.sync(repo, path_filter=path, dry_run=dry_run)
+
+            if result.already_current:
+                console.print("Already up to date.")
+                return
+
+            title = "Dry Run — Sync Estimate" if dry_run else "Sync Complete"
+            table = Table(title=title)
+            table.add_column("Metric", style="bold")
+            table.add_column("Value")
+            table.add_row("Files added", str(result.files_added))
+            table.add_row("Files modified", str(result.files_modified))
+            table.add_row("Files deleted", str(result.files_deleted))
+            table.add_row("LLM calls", str(result.llm_calls_made))
+            table.add_row("Tokens used", f"{result.tokens_used:,}")
+            table.add_row("Tier 1 rebuilt", "Yes" if result.tier1_rebuilt else "No")
+            table.add_row("Old commit", result.old_commit[:12] if result.old_commit else "-")
+            table.add_row("New commit", result.new_commit[:12] if result.new_commit else "-")
+            if not dry_run:
+                table.add_row("Duration", f"{result.duration_seconds:.1f}s")
+            console.print(table)
+        finally:
+            await ctx.db.close()
+
+    try:
+        _run(_sync())
+    except CodetexError as exc:
+        _handle_error(exc)
+
+
+@app.command()
+def context(
+    repo_name: str = typer.Argument(help="Name of the repository"),
+    file: str | None = typer.Option(None, "--file", "-f", help="File path for Tier 2 summary"),
+    symbol: str | None = typer.Option(None, "--symbol", "-s", help="Symbol name for Tier 3 detail"),
+    query: str | None = typer.Option(None, "--query", "-q", help="Semantic search query"),
+) -> None:
+    """Query indexed context — overview, file, symbol, or search."""
+
+    async def _context() -> None:
+        ctx = await _get_app()
+        try:
+            repo = await ctx.repo_manager.get_repo(repo_name)
+
+            if query is not None:
+                results = await ctx.search_engine.search(repo.id, query)
+                if not results:
+                    console.print("No results found.")
+                    return
+                table = Table(title="Search Results")
+                table.add_column("Score", style="dim")
+                table.add_column("Kind")
+                table.add_column("Path")
+                table.add_column("Name", style="bold")
+                table.add_column("Summary")
+                for r in results:
+                    table.add_row(
+                        f"{r.score:.4f}",
+                        r.kind,
+                        r.path,
+                        r.name,
+                        (r.summary[:80] + "...") if len(r.summary) > 80 else r.summary,
+                    )
+                console.print(table)
+            elif file is not None:
+                fc = await ctx.context_store.get_file_context(repo.id, file)
+                if fc is None:
+                    err_console.print(f"Error: File '{file}' not found in index.")
+                    raise typer.Exit(code=1)
+                md_parts: list[str] = []
+                md_parts.append(f"# {file}")
+                if fc.summary:
+                    md_parts.append(f"\n{fc.summary}")
+                if fc.role:
+                    md_parts.append(f"\n**Role:** {fc.role}")
+                md_parts.append(f"\n**Lines of code:** {fc.lines_of_code}")
+                md_parts.append(f"**Tokens:** {fc.token_count:,}")
+                if fc.symbols:
+                    md_parts.append("\n## Symbols")
+                    for s in fc.symbols:
+                        md_parts.append(f"- `{s.signature}` ({s.kind}, L{s.start_line}-{s.end_line})")
+                console.print(Markdown("\n".join(md_parts)))
+            elif symbol is not None:
+                sd = await ctx.context_store.get_symbol_detail(repo.id, symbol)
+                if sd is None:
+                    err_console.print(f"Error: Symbol '{symbol}' not found in index.")
+                    raise typer.Exit(code=1)
+                md_parts = []
+                md_parts.append(f"# {sd.signature}")
+                md_parts.append(f"\n**File:** {sd.file_path}:{sd.start_line}")
+                if sd.summary:
+                    md_parts.append(f"\n{sd.summary}")
+                if sd.parameters:
+                    md_parts.append(f"\n**Parameters:** {sd.parameters}")
+                if sd.return_type:
+                    md_parts.append(f"**Returns:** {sd.return_type}")
+                if sd.calls:
+                    md_parts.append(f"**Calls:** {sd.calls}")
+                console.print(Markdown("\n".join(md_parts)))
+            else:
+                overview = await ctx.context_store.get_repo_overview(repo.id)
+                if overview is None:
+                    console.print("No index found. Run 'codetex index' first.")
+                    return
+                console.print(Markdown(overview))
+        finally:
+            await ctx.db.close()
+
+    try:
+        _run(_context())
+    except CodetexError as exc:
+        _handle_error(exc)
+
+
+@app.command()
+def serve() -> None:
+    """Start the MCP server (stdio transport)."""
+    from codetex_mcp.server.mcp_server import create_server
+
+    server = create_server()
+    server.run()
 
 
 # --- config subcommands ---
