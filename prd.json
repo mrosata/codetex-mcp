@@ -105,8 +105,8 @@
         "Typecheck passes"
       ],
       "priority": 6,
-      "passes": false,
-      "notes": "Reference architecture doc §4.1 for files, symbols, dependencies table schemas."
+      "passes": true,
+      "notes": "Reference architecture doc §4.1 for files, symbols, dependencies table schemas. Completed: FileRecord and SymbolRecord dataclasses matching table columns, async DAO functions for files (upsert_file, update_file_summary, get_file, list_files, delete_file, count_files, get_total_tokens), symbols (upsert_symbol, update_symbol_summary, get_symbol, list_symbols_by_file, delete_symbols_by_file), and dependencies (upsert_dependency, delete_dependencies_by_file). Files use ON CONFLICT(repo_id, path) for upsert, dependencies use ON CONFLICT(source_file_id, target_path). 28 tests covering upsert/get/list/update/delete/count/cascade behavior. mypy passes (20 source files)."
     },
     {
       "id": "US-007",
@@ -120,8 +120,8 @@
         "Typecheck passes"
       ],
       "priority": 7,
-      "passes": false,
-      "notes": "Reference architecture doc §4.2 for sqlite-vec virtual table schema and query patterns."
+      "passes": true,
+      "notes": "Reference architecture doc §4.2 for sqlite-vec virtual table schema and query patterns. Completed: storage/vectors.py with _serialize_f32 helper, async DAO functions (upsert_file_embedding, upsert_symbol_embedding, delete_file_embedding, delete_symbol_embedding, search_file_embeddings, search_symbol_embeddings). Upserts use delete-then-insert pattern because vec0 virtual tables don't support ON CONFLICT. Search uses WHERE embedding MATCH ? ORDER BY distance LIMIT ?. Embeddings serialized via struct.pack as FLOAT[384]. 13 tests covering insert/upsert-replace/delete/search-nearest-neighbors/search-limit/search-empty/delete-nonexistent for both file and symbol embeddings. mypy passes (21 source files)."
     },
     {
       "id": "US-008",

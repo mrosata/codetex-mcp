@@ -164,3 +164,76 @@
 - `delete_repo` on a nonexistent ID is a no-op (SQLite DELETE with no matching rows doesn't error)
 - Next priority: **US-006** (File, symbol, and dependency storage DAOs) in `storage/files.py` and `storage/symbols.py`
 - Architecture reference: `tasks/architecture.md` §4.1 for files, symbols, dependencies table schemas
+
+## US-006: File, symbol, and dependency storage DAOs
+
+**Status:** Complete
+**Date:** 2026-03-29
+
+### What was done
+- Created `src/codetex_mcp/storage/files.py` with:
+  - `FileRecord` dataclass with fields matching the files table columns: `id`, `repo_id`, `path`, `language`, `lines_of_code`, `token_count`, `role`, `summary`, `imports_json`, `updated_at`
+  - `upsert_file(db, repo_id, path, language, lines_of_code, token_count, imports_json) -> file_id` — uses ON CONFLICT(repo_id, path) DO UPDATE for upsert
+  - `update_file_summary(db, file_id, summary, role)` — sets summary and role
+  - `get_file(db, repo_id, path) -> FileRecord | None`
+  - `list_files(db, repo_id) -> list[FileRecord]` — ordered by path
+  - `delete_file(db, file_id)`
+  - `count_files(db, repo_id) -> int`
+  - `get_total_tokens(db, repo_id) -> int` — SUM of token_count
+  - `upsert_dependency(db, repo_id, source_file_id, target_path, imported_names_json)` — uses ON CONFLICT(source_file_id, target_path) DO UPDATE
+  - `delete_dependencies_by_file(db, file_id)`
+- Created `src/codetex_mcp/storage/symbols.py` with:
+  - `SymbolRecord` dataclass with fields matching the symbols table columns: `id`, `file_id`, `repo_id`, `name`, `kind`, `signature`, `docstring`, `summary`, `start_line`, `end_line`, `parameters_json`, `return_type`, `calls_json`, `updated_at`
+  - `upsert_symbol(db, file_id, repo_id, name, kind, signature, docstring, start_line, end_line, parameters_json, return_type, calls_json) -> symbol_id` — plain INSERT (no unique constraint on symbols; caller uses delete_symbols_by_file then re-inserts)
+  - `update_symbol_summary(db, symbol_id, summary)`
+  - `get_symbol(db, repo_id, name) -> SymbolRecord | None`
+  - `list_symbols_by_file(db, file_id) -> list[SymbolRecord]` — ordered by start_line
+  - `delete_symbols_by_file(db, file_id)`
+- Created test suites:
+  - `tests/test_storage/test_files.py` — 18 tests across 8 classes (UpsertFile, UpdateFileSummary, GetFile, ListFiles, DeleteFile, CountFiles, GetTotalTokens, Dependencies, CascadeDelete)
+  - `tests/test_storage/test_symbols.py` — 10 tests across 6 classes (UpsertSymbol, UpdateSymbolSummary, GetSymbol, ListSymbolsByFile, DeleteSymbolsByFile, CascadeBehavior)
+- mypy passes (20 source files, no issues)
+- All 104 tests pass (28 new + 76 existing)
+
+### Notes for next developer
+- The symbols table has no UNIQUE constraint beyond the primary key, so `upsert_symbol` is a plain INSERT. The expected usage pattern is: `delete_symbols_by_file` first to clear stale symbols, then insert fresh ones during re-indexing
+- The files table has `UNIQUE(repo_id, path)` which enables true ON CONFLICT upsert behavior
+- The dependencies table has `UNIQUE(source_file_id, target_path)` which enables ON CONFLICT upsert
+- Both `delete_file` and `delete_symbols_by_file` on nonexistent IDs are no-ops (SQLite DELETE with no matching rows doesn't error)
+- Foreign key CASCADE ensures that deleting a file automatically deletes its symbols and dependencies
+- `get_total_tokens` uses `COALESCE(SUM(...), 0)` to return 0 for empty repos instead of None
+- Next priority: **US-007** (Vector storage DAO) in `storage/vectors.py`
+- Architecture reference: `tasks/architecture.md` §4.2 for sqlite-vec virtual table schema and query patterns
+
+## US-007: Vector storage DAO
+
+**Status:** Complete
+**Date:** 2026-03-29
+
+### What was done
+- Created `src/codetex_mcp/storage/vectors.py` with:
+  - `_serialize_f32(vector: list[float]) -> bytes` — converts float list to compact raw bytes via `struct.pack` for sqlite-vec
+  - `upsert_file_embedding(db, file_id, embedding)` — inserts or replaces a file embedding in `vec_file_embeddings`
+  - `upsert_symbol_embedding(db, symbol_id, embedding)` — inserts or replaces a symbol embedding in `vec_symbol_embeddings`
+  - `delete_file_embedding(db, file_id)` — deletes a file embedding by file_id
+  - `delete_symbol_embedding(db, symbol_id)` — deletes a symbol embedding by symbol_id
+  - `search_file_embeddings(db, query_embedding, limit) -> list[tuple[int, float]]` — KNN search returning (file_id, distance) ordered by distance
+  - `search_symbol_embeddings(db, query_embedding, limit) -> list[tuple[int, float]]` — KNN search returning (symbol_id, distance) ordered by distance
+- Created test suite: `tests/test_storage/test_vectors.py` with 13 tests across 6 classes:
+  - `TestUpsertFileEmbedding` (2 tests) — insert, upsert replaces existing
+  - `TestUpsertSymbolEmbedding` (2 tests) — insert, upsert replaces existing
+  - `TestDeleteFileEmbedding` (2 tests) — delete removes embedding, delete nonexistent is no-op
+  - `TestDeleteSymbolEmbedding` (2 tests) — delete removes embedding, delete nonexistent is no-op
+  - `TestSearchFileEmbeddings` (3 tests) — nearest neighbors ordered by distance, respects limit, empty table returns empty list
+  - `TestSearchSymbolEmbeddings` (2 tests) — nearest neighbors ordered by distance, empty table returns empty list
+- mypy passes (21 source files, no issues)
+- All 117 tests pass (13 new + 104 existing)
+
+### Notes for next developer
+- **Important:** `vec0` virtual tables do NOT support `ON CONFLICT`/UPSERT syntax. The upsert functions use a delete-then-insert pattern instead
+- Embeddings are serialized to raw bytes via `struct.pack(f"{len(vector)}f", *vector)` — this is the compact binary format sqlite-vec expects (much more efficient than JSON)
+- Search uses `WHERE embedding MATCH ? ORDER BY distance LIMIT ?` — the `MATCH` keyword triggers the KNN search, and `distance` is a special column provided by sqlite-vec
+- The distance metric is L2 (Euclidean) by default in sqlite-vec's vec0. The architecture doc mentions "cosine distance" but vec0's default is L2. For normalized vectors (which sentence-transformers produces), L2 and cosine distance give equivalent ordering, so search results are correctly ranked
+- Test helper `_make_embedding(seed)` creates deterministic 384-dim vectors with `[seed + i * 0.001 for i in range(384)]` — different seeds produce meaningfully different vectors for nearest-neighbor testing
+- Next priority: **US-008** (Git operations wrapper) in `git/operations.py`
+- Architecture reference: `tasks/architecture.md` §3.8 for git subprocess wrapper specification
