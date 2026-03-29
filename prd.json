@@ -336,8 +336,8 @@
         "Typecheck passes"
       ],
       "priority": 18,
-      "passes": false,
-      "notes": "Reference architecture doc §3.1 and §7 for CLI command mapping."
+      "passes": true,
+      "notes": "Reference architecture doc §3.1 and §7 for CLI command mapping. Completed: cli/app.py with Typer app (name='codetex') and config subcommand group. 'add' command detects remote URLs vs local paths via _is_remote_url and dispatches to RepoManager.add_remote/add_local. 'list' command displays rich Table with name, remote_url, indexed_commit (truncated to 12 chars), last_indexed_at. 'status' command shows indexed_commit, current HEAD (via git), staleness detection, files/symbols/tokens/last_indexed. 'config show' displays all settings as rich table (API key masked). 'config set' validates key names and types, reads/preserves existing TOML, writes with proper typing (int/float/string). CodetexError caught per-command via try/except, displayed as 'Error: <message>' with exit code 1. main() wraps app() with additional CodetexError catch. Custom _write_toml for stdlib-only TOML writing (tomllib is read-only). 24 tests across 7 classes covering add (local/remote/duplicate/db-close), list (repos/empty/db-close), status (indexed/stale/not-indexed/not-found/db-close), config show (with/without API key), config set (string/int/float/unknown-key/invalid-int/preserves-existing/api-key), error handling (CodetexError/subclass), main function. mypy passes (35 source files), all 460 tests pass."
     },
     {
       "id": "US-019",

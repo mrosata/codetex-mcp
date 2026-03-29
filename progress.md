@@ -672,3 +672,43 @@
 - The DB connection is opened and migrations are run eagerly in `create_app` — this is the only "heavy" initialization at startup. LLM client setup and embedding model download are deferred
 - Next priority: **US-018** (CLI commands — add, list, status, config) in `cli/app.py`
 - Architecture reference: `tasks/architecture.md` §3.1 and §7 for CLI command mapping
+
+## US-018: CLI commands — add, list, status, config
+
+**Status:** Complete
+**Date:** 2026-03-29
+
+### What was done
+- Implemented `src/codetex_mcp/cli/app.py` with 4 commands and a config subcommand group:
+  - `codetex add <target>` — detects remote URLs (contains `://` or starts with `git@`) vs local paths, dispatches to `RepoManager.add_remote` or `add_local`, prints success with repo name and local path
+  - `codetex list` — displays a rich `Table` with columns: Name (bold), Remote URL, Indexed Commit (truncated to 12 chars), Last Indexed. Shows "No repositories registered." for empty list
+  - `codetex status <repo>` — shows rich table with: Indexed Commit, Current HEAD (via `git.get_head_commit`), Stale (Yes/No/N/A), Files Indexed, Symbols Indexed, Total Tokens (comma-formatted), Last Indexed
+  - `codetex config show` — displays all settings as a rich table. API key is masked as `***`; shown as `Not set` when None
+  - `codetex config set <key> <value>` — validates key name against `_CONFIG_KEY_MAP` (8 valid keys), validates int/float types, reads and preserves existing TOML values, writes with proper TOML typing
+- Config subcommand uses `typer.Typer` subgroup added via `app.add_typer(config_app, name="config")`
+- Error handling: each async command catches `CodetexError` and calls `_handle_error()` which prints `"Error: {message}"` to stderr and raises `typer.Exit(code=1)`. `main()` also wraps `app()` in a `CodetexError` catch for the real entry point
+- Custom `_write_toml()` function for TOML serialization since `tomllib` (stdlib) is read-only and no `tomli_w` dependency is added
+- Async bridge: each command defines an inner `async def` and runs it via `asyncio.run()`. The `_get_app()` helper calls `create_app()` to wire services
+- DB cleanup: all async commands use `try/finally` to ensure `ctx.db.close()` is called
+- Created test suite: `tests/test_cli/test_app.py` with 24 tests across 7 classes:
+  - `TestAddCommand` (4 tests) — add local, add remote, duplicate error, DB close
+  - `TestListCommand` (3 tests) — list repos with data, empty list, DB close
+  - `TestStatusCommand` (5 tests) — indexed repo, stale detection, not indexed, repo not found, DB close
+  - `TestConfigShowCommand` (2 tests) — with API key (masked), without API key
+  - `TestConfigSetCommand` (7 tests) — string value, int value, float value, unknown key, invalid int, preserves existing config, API key
+  - `TestErrorHandling` (2 tests) — CodetexError caught, subclass caught
+  - `TestMainFunction` (1 test) — main() exists and is callable
+- mypy passes (35 source files, no issues)
+- All 460 tests pass (24 new + 436 existing)
+
+### Notes for next developer
+- Typer commands are sync but call async services via `asyncio.run()`. Each command defines an inner `async def` that does the actual work
+- Error handling is per-command (not just in `main()`) because Typer's `CliRunner` in tests invokes `app()` directly, not `main()`. The `try/except CodetexError` wraps the `_run()` call in each command
+- `_get_app()` is a separate async function (not inline) so tests can mock it via `patch("codetex_mcp.cli.app._get_app", return_value=mock_ctx)`
+- `config set` uses `_write_toml()` — a simple custom TOML writer. It handles strings (with escaping), booleans, int/float, and lists. More complex TOML features (nested tables, multiline strings) are not needed for our config schema
+- `config show` masks the API key as `***` for security — it never displays the actual key
+- The `status` command catches exceptions from `git.get_head_commit` silently — the repo directory might have been moved or deleted
+- Staleness logic: compares `indexed_commit` with `current_head`. Shows "N/A" when not indexed, "Yes"/"No" when indexed
+- Tests use `typer.testing.CliRunner` with mocked `_get_app` — no real database, git operations, or file system
+- Next priority: **US-019** (CLI commands — index, sync, context, serve) in `cli/app.py`
+- Architecture reference: `tasks/architecture.md` §3.1 and §7 for CLI command mapping
