@@ -4,6 +4,15 @@ version = "0.1.0"
 description = "Commit-aware code context manager for LLMs - MCP server and CLI"
 readme = "README.md"
 requires-python = ">=3.12"
+authors = [{ name = "Michael Rosata", email = "michael.rosata@gmail.com" }]
+license = { text = "MIT" }
+keywords = ["mcp", "llm", "code-context", "tree-sitter", "sqlite"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: MIT License",
+    "Topic :: Software Development :: Libraries",
+]
 dependencies = [
     # CLI
     "typer>=0.9",
@@ -33,6 +42,11 @@ dependencies = [
     # AST parsing
     "tree-sitter>=0.23",
 ]
+
+[project.urls]
+Homepage = "https://github.com/mrosata/codetex-mcp"
+Repository = "https://github.com/mrosata/codetex-mcp"
+Issues = "https://github.com/mrosata/codetex-mcp/issues"
 
 [project.scripts]
 codetex = "codetex_mcp.cli.app:main"
@@ -71,3 +85,9 @@ dev = [
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.semantic_release]
+version_toml = ["pyproject.toml:project.version"]
+branch = "main"
+build_command = "uv build"
+commit_message = "chore(release): {version}"

@@ -321,7 +321,7 @@ MCP (FastMCP)─┘         │              │              │
 ## Development
 
 ```bash
-git clone https://github.com/user/codetex-mcp.git
+git clone https://github.com/mrosata/codetex-mcp.git
 cd codetex-mcp
 
 # Install dependencies (including dev)
@@ -339,6 +339,41 @@ uv run ruff format src/ tests/
 
 # Type check
 uv run mypy src/
+```
+
+## Releasing
+
+Releases are automated via GitHub Actions and [python-semantic-release](https://python-semantic-release.readthedocs.io/). Version bumps are driven by **conventional commit messages** on `main`.
+
+### Commit message format
+
+| Prefix | Effect | Example |
+|--------|--------|---------|
+| `fix: ...` | Patch bump (0.1.0 → 0.1.1) | `fix: handle missing gitignore` |
+| `feat: ...` | Minor bump (0.1.0 → 0.2.0) | `feat: add Ruby tree-sitter support` |
+| `feat!: ...` | Major bump (0.1.0 → 1.0.0) | `feat!: redesign context API` |
+| `docs:`, `chore:`, `ci:`, `test:`, `refactor:` | No release | `docs: update README` |
+
+A `BREAKING CHANGE:` line in the commit body also triggers a major bump.
+
+### How it works
+
+1. Push or merge a PR to `main`
+2. CI runs lint, type check, and tests
+3. The release workflow analyzes commits since the last tag
+4. If a version bump is needed, it:
+   - Updates the version in `pyproject.toml`
+   - Creates a git tag (e.g., `v0.2.0`)
+   - Publishes a GitHub Release with a changelog
+   - Builds and publishes the package to PyPI
+
+### Manual release (not recommended)
+
+If you need to release without the automation:
+
+```bash
+uv build
+uv publish
 ```
 
 ## License
