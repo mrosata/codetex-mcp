@@ -88,8 +88,8 @@
         "Typecheck passes"
       ],
       "priority": 5,
-      "passes": false,
-      "notes": "Reference architecture doc §4.1 repositories table schema."
+      "passes": true,
+      "notes": "Reference architecture doc §4.1 repositories table schema. Completed: Repository dataclass with all table columns, async DAO functions (create_repo, get_repo_by_name, list_repos, update_indexed_commit, delete_repo), create_repo raises RepositoryAlreadyExistsError on unique constraint violation, 11 tests covering create/get/list/update/delete/duplicate error, mypy passes (18 source files)."
     },
     {
       "id": "US-006",

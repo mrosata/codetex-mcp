@@ -133,3 +133,34 @@
 - All tables use `IF NOT EXISTS` for safety, but the migration runner also tracks versions so migrations won't re-run
 - Next priority: **US-005** (Repository storage DAO) in `storage/repositories.py`
 - Architecture reference: `tasks/architecture.md` §4.1 repositories table schema
+
+## US-005: Repository storage DAO
+
+**Status:** Complete
+**Date:** 2026-03-29
+
+### What was done
+- Created `src/codetex_mcp/storage/repositories.py` with:
+  - `Repository` dataclass with fields matching the repositories table columns: `id`, `name`, `remote_url`, `local_path`, `default_branch`, `indexed_commit`, `last_indexed_at`, `created_at`
+  - `create_repo(db, name, remote_url, local_path, default_branch) -> Repository` — inserts a new repository, raises `RepositoryAlreadyExistsError` on unique constraint violation
+  - `get_repo_by_name(db, name) -> Repository | None` — fetches by name, returns None if not found
+  - `list_repos(db) -> list[Repository]` — returns all repos ordered by name
+  - `update_indexed_commit(db, repo_id, commit_sha)` — sets `indexed_commit` and `last_indexed_at = datetime('now')`
+  - `delete_repo(db, repo_id)` — deletes by ID
+  - Internal `_row_to_repo()` helper converts aiosqlite rows to `Repository` dataclass
+- Created test suite: `tests/test_storage/test_repositories.py` with 11 tests across 5 classes:
+  - `TestCreateRepo` (3 tests) — returns Repository with correct fields, handles None remote_url, raises on duplicate name
+  - `TestGetRepoByName` (2 tests) — finds existing repo, returns None for nonexistent
+  - `TestListRepos` (2 tests) — empty list, multiple repos ordered by name
+  - `TestUpdateIndexedCommit` (2 tests) — sets commit and timestamp, overwrites previous commit
+  - `TestDeleteRepo` (2 tests) — removes repo, no error on nonexistent ID
+- mypy passes (18 source files, no issues)
+- All 76 tests pass (11 new + 65 existing)
+
+### Notes for next developer
+- `_row_to_repo` uses `Any` type annotation for the row parameter to satisfy mypy (aiosqlite's `Row` type isn't exactly `tuple[object, ...]`)
+- The test fixture includes `await database.migrate()` since the DAO depends on the tables existing
+- `create_repo` catches `UNIQUE constraint failed` in the exception message to detect duplicates and re-raises as `RepositoryAlreadyExistsError`
+- `delete_repo` on a nonexistent ID is a no-op (SQLite DELETE with no matching rows doesn't error)
+- Next priority: **US-006** (File, symbol, and dependency storage DAOs) in `storage/files.py` and `storage/symbols.py`
+- Architecture reference: `tasks/architecture.md` §4.1 for files, symbols, dependencies table schemas
