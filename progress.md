@@ -325,3 +325,64 @@
 - The `SymbolInfo.kind` field uses a `Literal` type, but the fallback parser only produces `"function"` and `"class"` kinds — `"method"`, `"variable"`, and `"constant"` kinds will come from the tree-sitter parser (US-010)
 - Next priority: **US-010** (Tree-sitter parser and unified dispatcher) in `analysis/tree_sitter.py` and `analysis/parser.py`
 - Architecture reference: `tasks/architecture.md` §3.4.1 and §3.4.2
+
+## US-010: Tree-sitter parser and unified dispatcher
+
+**Status:** Complete
+**Date:** 2026-03-29
+
+### What was done
+- Created `src/codetex_mcp/analysis/tree_sitter.py` with `TreeSitterParser` class:
+  - `__init__()` — initializes language cache dict
+  - `_load_language(language)` — on-demand grammar loading via `importlib.import_module` for tree-sitter grammar packages (e.g., `tree_sitter_python`), caches `Language` object or `None` on failure
+  - `is_language_supported(language) -> bool` — checks if grammar is available (triggers lazy load)
+  - `parse(content, language) -> FileAnalysis` — full AST parsing, raises `ValueError` if language unsupported
+  - Supports 8 languages: python, javascript, typescript, go, rust, java, ruby, cpp
+  - Python-specific deep extraction:
+    - Function/method signatures with full parameter parsing (identifier, typed_parameter, default_parameter, typed_default_parameter, list_splat_pattern, dictionary_splat_pattern)
+    - Return type annotations
+    - Docstrings (triple-quoted `"""` and `'''`, single and multi-line)
+    - Class definitions with base class extraction from argument_list
+    - Method vs function kind detection (based on whether definition is inside a class body)
+    - Decorated definitions handled by unwrapping `decorated_definition` nodes
+    - `self`/`cls` parameter filtering
+  - Generic extraction for other languages: first-line signature, kind inference from node type
+  - Import extraction for Python: `import`, `from..import` with names, aliased imports, wildcard imports
+  - Token counting via tiktoken `cl100k_base` (lazy-loaded encoder, same pattern as fallback parser)
+  - Line counting via `str.splitlines()`
+- Created `src/codetex_mcp/analysis/parser.py` with `Parser` dispatcher class:
+  - `__init__(tree_sitter_parser, fallback_parser)` — takes both parsers as dependencies
+  - `detect_language(path: Path) -> str | None` — maps 20+ file extensions to language names:
+    - `.py`/`.pyw` → python
+    - `.js`/`.mjs`/`.cjs`/`.jsx` → javascript
+    - `.ts`/`.tsx` → typescript
+    - `.go` → go, `.rs` → rust, `.java` → java, `.rb` → ruby
+    - `.cpp`/`.cc`/`.cxx`/`.c`/`.h`/`.hpp`/`.hxx` → cpp
+  - `parse_file(path, content, language=None) -> FileAnalysis` — detects language from path if not provided, tries tree-sitter first (if language supported), falls back to FallbackParser, sets actual file path on result
+- Created test suites:
+  - `tests/test_analysis/test_tree_sitter.py` — 28 tests across 8 classes:
+    - `TestLanguageSupport` (4 tests) — grammar availability, caching, unsupported cached as None
+    - `TestPythonFunctionExtraction` (6 tests) — simple/params+return/defaults/self-cls excluded/args-kwargs/decorated
+    - `TestPythonClassExtraction` (4 tests) — simple/bases/docstring/methods with kind detection
+    - `TestPythonDocstringExtraction` (4 tests) — function/multiline/none/single-quoted
+    - `TestPythonImportExtraction` (4 tests) — simple/from-import/wildcard/aliased
+    - `TestPythonMetrics` (4 tests) — line count/token count/language set/path empty
+    - `TestPythonFullFile` (1 test) — full file with imports, classes, methods, functions
+    - `TestParseUnsupportedLanguage` (1 test) — raises ValueError for unknown language
+  - `tests/test_analysis/test_parser.py` — 24 tests across 3 classes:
+    - `TestDetectLanguage` (17 tests) — all extension mappings including case insensitivity
+    - `TestParseFile` (5 tests) — path setting, language detection, override, fallback, symbol extraction
+    - `TestTreeSitterFallbackDispatch` (2 tests) — tree-sitter used when available, fallback for unsupported
+- mypy passes (26 source files, no issues)
+- All 245 tests pass (52 new + 193 existing)
+
+### Notes for next developer
+- tree-sitter grammar packages are optional pip extras — install via `uv sync --extra tree-sitter-python` etc.
+- The `TreeSitterParser` caches loaded languages: `Language` object on success, `None` on `ImportError`/`OSError`. Cache is per-instance, so creating a new `TreeSitterParser()` resets it
+- **Important tree-sitter API gotcha:** In Python's grammar, `typed_parameter` nodes do NOT have a `name` field for the identifier child — it has no field name (`None`). Instead, find the first `identifier` child directly. `typed_default_parameter` DOES have a `name` field. This asymmetry required different extraction logic
+- Python parsing tests are conditionally skipped if `tree-sitter-python` is not installed (via `pytest.mark.skipif`)
+- Both `TreeSitterParser.parse()` and `FallbackParser.parse()` set `path=""` — the unified `Parser.parse_file()` sets the actual path after calling the underlying parser
+- The `Parser` dispatcher is the intended public API — `TreeSitterParser` and `FallbackParser` are implementation details
+- For non-Python languages, the tree-sitter parser uses a generic extractor that captures the first line as signature. Language-specific deep extraction (like Python's parameter parsing) can be added per-language as needed
+- Next priority: **US-011** (LLM rate limiter, prompts, and provider) in `llm/rate_limiter.py`, `llm/prompts.py`, `llm/provider.py`
+- Architecture reference: `tasks/architecture.md` §3.5

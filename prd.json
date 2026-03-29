@@ -177,8 +177,8 @@
         "Typecheck passes"
       ],
       "priority": 10,
-      "passes": false,
-      "notes": "Reference architecture doc §3.4.1 and §3.4.2. Grammars are optional pip extras."
+      "passes": true,
+      "notes": "Reference architecture doc §3.4.1 and §3.4.2. Completed: analysis/tree_sitter.py with TreeSitterParser class: on-demand grammar loading via importlib with caching (Language or None), is_language_supported(language) check, parse(content, language) returning FileAnalysis. Python AST extraction: function/method signatures with full parameter parsing (typed, default, typed_default, *args, **kwargs), return types, docstrings (triple-quoted), class definitions with base classes, method vs function kind detection (via class body context), decorated definitions. Import extraction: import statements, from-import with names, aliased imports, wildcard imports. Generic extraction for other languages using first-line signature. analysis/parser.py with Parser dispatcher: detect_language(path) mapping 20+ file extensions to language names (.py/.pyw→python, .js/.mjs/.cjs/.jsx→javascript, .ts/.tsx→typescript, .go→go, .rs→rust, .java→java, .rb→ruby, .cpp/.cc/.cxx/.c/.h/.hpp/.hxx→cpp), parse_file(path, content, language) tries tree-sitter first then falls back to FallbackParser, sets actual file path on result. 52 tests across 12 classes covering language support caching, Python function/class/docstring/import extraction, metrics, full file parsing, language detection for all extensions, parse_file path/language handling, tree-sitter vs fallback dispatch. mypy passes (26 source files), all 245 tests pass."
     },
     {
       "id": "US-011",
