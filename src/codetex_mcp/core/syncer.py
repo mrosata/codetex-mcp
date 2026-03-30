@@ -15,6 +15,7 @@ from codetex_mcp.analysis.parser import Parser
 from codetex_mcp.config.ignore import IgnoreFilter
 from codetex_mcp.config.settings import Settings
 from codetex_mcp.core.indexer import (
+    StepCallback,
     _build_directory_tree,
     _extract_role,
     _imports_to_json,
@@ -98,6 +99,7 @@ class Syncer:
         repo: Repository,
         path_filter: str | None = None,
         dry_run: bool = False,
+        on_step: StepCallback | None = None,
     ) -> SyncResult:
         """Run the 7-step incremental sync pipeline.
 
@@ -105,6 +107,7 @@ class Syncer:
             repo: Repository record from the database.
             path_filter: Optional prefix to restrict sync scope.
             dry_run: If True, computes diff and estimates without making LLM calls.
+            on_step: Callback(step_description) fired before each pipeline step.
 
         Returns:
             SyncResult with change counts and timing.
@@ -114,8 +117,13 @@ class Syncer:
         repo_name = repo.name
         repo_path = Path(repo.local_path)
 
+        def _step(msg: str) -> None:
+            if on_step is not None:
+                on_step(msg)
+
         try:
             # Step 1: Compare commits
+            _step("Comparing commits...")
             old_commit = repo.indexed_commit or ""
             new_commit = await self._git.get_head_commit(repo_path)
 
@@ -134,6 +142,7 @@ class Syncer:
                 )
 
             # Step 2: Compute diff, apply filters
+            _step("Computing diff...")
             diff = await self._git.diff_commits(repo_path, old_commit, new_commit)
             diff = self._apply_filters(diff, repo_path, path_filter)
 
@@ -148,20 +157,32 @@ class Syncer:
                 )
 
             # Step 3: Delete removed files
+            if diff.deleted:
+                _step(f"Removing {len(diff.deleted)} deleted files...")
             await self._delete_removed(diff.deleted, repo_id)
 
             # Step 4: Re-analyze added + modified files
             changed_paths = diff.added + diff.modified
+            _step(f"Parsing {len(changed_paths)} changed files...")
             work_items = self._parse_files(changed_paths, repo_path)
             await self._store_structure(work_items, repo_id)
 
             # LLM Tier 2 summaries for changed files
+            _step(f"Generating file summaries ({len(work_items)} files)...")
             llm_calls_t2 = await self._summarize_tier2(work_items)
 
             # LLM Tier 3 summaries for changed symbols
+            t3_count = sum(
+                1
+                for w in work_items
+                for _, s in w.symbol_ids
+                if s.kind in ("function", "method", "class")
+            )
+            _step(f"Generating symbol summaries ({t3_count} symbols)...")
             llm_calls_t3 = await self._summarize_tier3(work_items)
 
             # Step 5: Update embeddings for changed files/symbols
+            _step("Updating embeddings...")
             await self._update_embeddings(work_items, repo_id)
 
             # Step 6: Conditional Tier 1 rebuild
@@ -174,6 +195,7 @@ class Syncer:
             llm_calls_t1 = 0
             tier1_rebuilt = False
             if changed_ratio >= self._config.tier1_rebuild_threshold:
+                _step("Rebuilding repository overview...")
                 llm_calls_t1 = await self._generate_tier1(
                     repo_id,
                     repo_name,
@@ -182,6 +204,7 @@ class Syncer:
                 tier1_rebuilt = True
 
             # Step 7: Update commit
+            _step("Updating commit reference...")
             await update_indexed_commit(self._db, repo_id, new_commit)
 
             total_tokens = sum(w.analysis.token_count for w in work_items)

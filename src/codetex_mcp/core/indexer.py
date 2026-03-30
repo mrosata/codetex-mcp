@@ -48,6 +48,7 @@ from codetex_mcp.storage.vectors import (
 )
 
 ProgressCallback = Callable[[int, int, str], None]
+StepCallback = Callable[[str], None]
 
 
 @dataclass
@@ -94,6 +95,7 @@ class Indexer:
         path_filter: str | None = None,
         dry_run: bool = False,
         on_progress: ProgressCallback | None = None,
+        on_step: StepCallback | None = None,
     ) -> IndexResult:
         """Run the full 9-step indexing pipeline.
 
@@ -102,6 +104,7 @@ class Indexer:
             path_filter: Optional prefix to restrict indexing scope.
             dry_run: If True, only runs Steps 1-2 and returns estimates.
             on_progress: Callback(current, total, file_path) for progress reporting.
+            on_step: Callback(step_description) fired before each pipeline step.
 
         Returns:
             IndexResult with counts and timing.
@@ -111,29 +114,46 @@ class Indexer:
         repo_name = repo.name
         repo_path = Path(repo.local_path)
 
+        def _step(msg: str) -> None:
+            if on_step is not None:
+                on_step(msg)
+
         try:
             # Step 1: Discover files
+            _step("Discovering files...")
             file_paths = await self._discover_files(repo_path, path_filter)
 
             # Step 2: Parse each file
+            _step(f"Parsing {len(file_paths)} files...")
             work_items = self._parse_files(file_paths, repo_path, on_progress)
 
             if dry_run:
                 return self._build_dry_run_result(work_items, start)
 
             # Step 3: Store structure (file/symbol/dependency records)
+            _step("Storing file structure...")
             await self._store_structure(work_items, repo_id)
 
             # Steps 4-5: LLM Tier 2 summaries
+            _step(f"Generating file summaries ({len(work_items)} files)...")
             llm_calls_t2 = await self._summarize_tier2(work_items)
 
             # Steps 6-7: LLM Tier 3 summaries
+            t3_count = sum(
+                1
+                for w in work_items
+                for _, s in w.symbol_ids
+                if s.kind in ("function", "method", "class")
+            )
+            _step(f"Generating symbol summaries ({t3_count} symbols)...")
             llm_calls_t3 = await self._summarize_tier3(work_items)
 
             # Step 8: Generate embeddings
+            _step("Building embeddings...")
             await self._generate_embeddings(work_items, repo_id)
 
             # Step 9: Tier 1 overview + update commit
+            _step("Generating repository overview...")
             commit_sha = await self._git.get_head_commit(repo_path)
             llm_calls_t1 = await self._generate_tier1(
                 repo_id,

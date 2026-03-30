@@ -761,6 +761,72 @@ class TestPathFilter:
         assert result.files_deleted == 0
 
 
+# -- Step Callback -----------------------------------------------------------
+
+
+class TestStepCallback:
+    @pytest.mark.asyncio
+    async def test_on_step_called_for_sync(
+        self,
+        syncer: Syncer,
+        repo_record: Repository,
+        indexed_repo: None,
+        repo_dir: Path,
+    ) -> None:
+        (repo_dir / "src" / "new_file.py").write_text("def new_func():\n    pass\n")
+        steps: list[str] = []
+        await syncer.sync(repo_record, on_step=steps.append)
+
+        assert len(steps) >= 6
+        assert "Comparing commits" in steps[0]
+        assert "Computing diff" in steps[1]
+
+    @pytest.mark.asyncio
+    async def test_on_step_includes_counts(
+        self,
+        syncer: Syncer,
+        repo_record: Repository,
+        indexed_repo: None,
+        repo_dir: Path,
+    ) -> None:
+        (repo_dir / "src" / "new_file.py").write_text("def new_func():\n    pass\n")
+        steps: list[str] = []
+        await syncer.sync(repo_record, on_step=steps.append)
+
+        # Should include counts in step messages
+        step_text = " ".join(steps)
+        assert "files" in step_text
+        assert "symbols" in step_text
+
+    @pytest.mark.asyncio
+    async def test_on_step_none_does_not_raise(
+        self,
+        syncer: Syncer,
+        repo_record: Repository,
+        indexed_repo: None,
+        repo_dir: Path,
+    ) -> None:
+        (repo_dir / "src" / "new_file.py").write_text("def new_func():\n    pass\n")
+        result = await syncer.sync(repo_record, on_step=None)
+        assert result.already_current is False
+
+    @pytest.mark.asyncio
+    async def test_on_step_already_current(
+        self,
+        syncer: Syncer,
+        repo_record: Repository,
+        mock_git: AsyncMock,
+    ) -> None:
+        mock_git.get_head_commit.return_value = "old_commit_sha"
+        steps: list[str] = []
+        result = await syncer.sync(repo_record, on_step=steps.append)
+
+        assert result.already_current is True
+        # Should still fire the comparing step before early return
+        assert len(steps) >= 1
+        assert "Comparing commits" in steps[0]
+
+
 # -- Error Handling -----------------------------------------------------------
 
 

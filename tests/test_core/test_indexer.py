@@ -564,6 +564,65 @@ class TestProgressCallback:
         assert calls[1] == (2, 2, "src/utils.py")
 
 
+class TestStepCallback:
+    @pytest.mark.asyncio
+    async def test_on_step_called_for_all_steps(
+        self,
+        indexer: Indexer,
+        repo_record: Repository,
+    ) -> None:
+        steps: list[str] = []
+        result = await indexer.index(repo_record, on_step=steps.append)
+
+        assert len(steps) == 7
+        assert "Discovering files" in steps[0]
+        assert "Parsing" in steps[1]
+        assert "Storing file structure" in steps[2]
+        assert "file summaries" in steps[3]
+        assert "symbol summaries" in steps[4]
+        assert "embeddings" in steps[5]
+        assert "repository overview" in steps[6]
+
+    @pytest.mark.asyncio
+    async def test_on_step_includes_counts(
+        self,
+        indexer: Indexer,
+        repo_record: Repository,
+    ) -> None:
+        steps: list[str] = []
+        await indexer.index(repo_record, on_step=steps.append)
+
+        # Parsing step should include file count
+        assert "2 files" in steps[1]
+        # File summaries should include file count
+        assert "2 files" in steps[3]
+        # Symbol summaries should include symbol count
+        assert "2 symbols" in steps[4]
+
+    @pytest.mark.asyncio
+    async def test_on_step_called_for_dry_run(
+        self,
+        indexer: Indexer,
+        repo_record: Repository,
+    ) -> None:
+        steps: list[str] = []
+        await indexer.index(repo_record, dry_run=True, on_step=steps.append)
+
+        # Dry run only runs steps 1-2
+        assert len(steps) == 2
+        assert "Discovering files" in steps[0]
+        assert "Parsing" in steps[1]
+
+    @pytest.mark.asyncio
+    async def test_on_step_none_does_not_raise(
+        self,
+        indexer: Indexer,
+        repo_record: Repository,
+    ) -> None:
+        result = await indexer.index(repo_record, on_step=None)
+        assert result.files_indexed == 2
+
+
 # -- Error Handling -----------------------------------------------------------
 
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import tomllib
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -567,6 +568,59 @@ class TestIndexCommand:
 
         mock_ctx.db.close.assert_called_once()
 
+    def test_index_passes_on_step_callback(self) -> None:
+        mock_ctx = _make_mock_ctx()
+        mock_ctx.repo_manager.get_repo.return_value = _make_repo()
+        mock_ctx.indexer.index.return_value = IndexResult(
+            files_indexed=5,
+            symbols_extracted=10,
+            llm_calls_made=6,
+            tokens_used=3000,
+            duration_seconds=2.0,
+            commit_sha="abc123",
+        )
+
+        with patch("codetex_mcp.cli.app._get_app", return_value=mock_ctx):
+            result = runner.invoke(app, ["index", "my-repo"])
+
+        assert result.exit_code == 0
+        _, kwargs = mock_ctx.indexer.index.call_args
+        assert "on_step" in kwargs
+        assert kwargs["on_step"] is not None
+
+    def test_index_timeout(self) -> None:
+        mock_ctx = _make_mock_ctx()
+        mock_ctx.repo_manager.get_repo.return_value = _make_repo()
+
+        async def _hang(*args: object, **kwargs: object) -> IndexResult:
+            await asyncio.sleep(999)
+            raise AssertionError("should not reach here")
+
+        mock_ctx.indexer.index.side_effect = _hang
+
+        with patch("codetex_mcp.cli.app._get_app", return_value=mock_ctx):
+            result = runner.invoke(app, ["index", "my-repo", "--timeout", "1"])
+
+        assert result.exit_code == 1
+        assert "timed out" in result.output
+
+    def test_index_custom_timeout(self) -> None:
+        mock_ctx = _make_mock_ctx()
+        mock_ctx.repo_manager.get_repo.return_value = _make_repo()
+        mock_ctx.indexer.index.return_value = IndexResult(
+            files_indexed=5,
+            symbols_extracted=10,
+            llm_calls_made=6,
+            tokens_used=3000,
+            duration_seconds=2.0,
+            commit_sha="abc123",
+        )
+
+        with patch("codetex_mcp.cli.app._get_app", return_value=mock_ctx):
+            result = runner.invoke(app, ["index", "my-repo", "--timeout", "3600"])
+
+        assert result.exit_code == 0
+
 
 # ---- sync command ----
 
@@ -700,6 +754,70 @@ class TestSyncCommand:
             runner.invoke(app, ["sync", "my-repo"])
 
         mock_ctx.db.close.assert_called_once()
+
+    def test_sync_passes_on_step_callback(self) -> None:
+        mock_ctx = _make_mock_ctx()
+        mock_ctx.repo_manager.get_repo.return_value = _make_repo()
+        mock_ctx.syncer.sync.return_value = SyncResult(
+            already_current=False,
+            files_added=1,
+            files_modified=0,
+            files_deleted=0,
+            llm_calls_made=1,
+            tokens_used=500,
+            tier1_rebuilt=False,
+            old_commit="aaa",
+            new_commit="bbb",
+            duration_seconds=1.0,
+        )
+
+        with patch("codetex_mcp.cli.app._get_app", return_value=mock_ctx):
+            result = runner.invoke(app, ["sync", "my-repo"])
+
+        assert result.exit_code == 0
+        _, kwargs = mock_ctx.syncer.sync.call_args
+        assert "on_step" in kwargs
+        assert kwargs["on_step"] is not None
+
+    def test_sync_timeout(self) -> None:
+        mock_ctx = _make_mock_ctx()
+        mock_ctx.repo_manager.get_repo.return_value = _make_repo()
+
+        async def _hang(*args: object, **kwargs: object) -> SyncResult:
+            await asyncio.sleep(999)
+            raise AssertionError("should not reach here")
+
+        mock_ctx.syncer.sync.side_effect = _hang
+
+        with patch("codetex_mcp.cli.app._get_app", return_value=mock_ctx):
+            result = runner.invoke(app, ["sync", "my-repo", "--timeout", "1"])
+
+        assert result.exit_code == 1
+        assert "timed out" in result.output
+
+    def test_sync_dry_run_no_progress(self) -> None:
+        """Dry run should NOT pass on_step (no progress spinner)."""
+        mock_ctx = _make_mock_ctx()
+        mock_ctx.repo_manager.get_repo.return_value = _make_repo()
+        mock_ctx.syncer.sync.return_value = SyncResult(
+            already_current=False,
+            files_added=2,
+            files_modified=1,
+            files_deleted=0,
+            llm_calls_made=4,
+            tokens_used=2000,
+            tier1_rebuilt=False,
+            old_commit="aaa111",
+            new_commit="bbb222",
+            duration_seconds=0.0,
+        )
+
+        with patch("codetex_mcp.cli.app._get_app", return_value=mock_ctx):
+            result = runner.invoke(app, ["sync", "my-repo", "--dry-run"])
+
+        assert result.exit_code == 0
+        _, kwargs = mock_ctx.syncer.sync.call_args
+        assert kwargs.get("on_step") is None
 
 
 # ---- context command ----

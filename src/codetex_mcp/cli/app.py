@@ -146,6 +146,9 @@ def status(repo_name: str = typer.Argument(help="Name of the repository")) -> No
         _handle_error(exc)
 
 
+_DEFAULT_TIMEOUT = 1800  # 30 minutes
+
+
 @app.command()
 def index(
     repo_name: str = typer.Argument(help="Name of the repository"),
@@ -154,6 +157,11 @@ def index(
     ),
     dry_run: bool = typer.Option(
         False, "--dry-run", help="Show estimated work without making API calls"
+    ),
+    timeout: int = typer.Option(
+        _DEFAULT_TIMEOUT,
+        "--timeout",
+        help="Maximum seconds before aborting (default 1800)",
     ),
 ) -> None:
     """Build a full index for a repository."""
@@ -178,21 +186,29 @@ def index(
             with Progress(
                 SpinnerColumn(),
                 TextColumn("[progress.description]{task.description}"),
-                TextColumn("{task.completed}/{task.total}"),
+                TextColumn("[dim]{task.fields[detail]}[/dim]"),
                 console=console,
             ) as progress:
-                task_id = progress.add_task("Indexing...", total=None)
+                task_id = progress.add_task("Starting...", detail="")
+
+                def on_step(step: str) -> None:
+                    progress.update(task_id, description=step, detail="")
 
                 def on_progress(current: int, total: int, file_path: str) -> None:
                     progress.update(
                         task_id,
-                        total=total,
-                        completed=current,
-                        description=f"Indexing {file_path}",
+                        description="Parsing files...",
+                        detail=f"{current}/{total}",
                     )
 
-                result = await ctx.indexer.index(
-                    repo, path_filter=path, on_progress=on_progress
+                result = await asyncio.wait_for(
+                    ctx.indexer.index(
+                        repo,
+                        path_filter=path,
+                        on_progress=on_progress,
+                        on_step=on_step,
+                    ),
+                    timeout=timeout,
                 )
 
             table = Table(title="Index Complete")
@@ -205,6 +221,12 @@ def index(
             table.add_row("Duration", f"{result.duration_seconds:.1f}s")
             table.add_row("Commit", result.commit_sha[:12])
             console.print(table)
+        except TimeoutError:
+            err_console.print(
+                f"Error: Indexing timed out after {timeout}s. "
+                "Try a smaller --path filter or increase --timeout."
+            )
+            raise typer.Exit(code=1)
         finally:
             await ctx.db.close()
 
@@ -223,6 +245,11 @@ def sync(
     dry_run: bool = typer.Option(
         False, "--dry-run", help="Show what would change without making API calls"
     ),
+    timeout: int = typer.Option(
+        _DEFAULT_TIMEOUT,
+        "--timeout",
+        help="Maximum seconds before aborting (default 1800)",
+    ),
 ) -> None:
     """Incremental sync — update index for new commits."""
 
@@ -230,7 +257,24 @@ def sync(
         ctx = await _get_app()
         try:
             repo = await ctx.repo_manager.get_repo(repo_name)
-            result = await ctx.syncer.sync(repo, path_filter=path, dry_run=dry_run)
+
+            if dry_run:
+                result = await ctx.syncer.sync(repo, path_filter=path, dry_run=True)
+            else:
+                with Progress(
+                    SpinnerColumn(),
+                    TextColumn("[progress.description]{task.description}"),
+                    console=console,
+                ) as progress:
+                    task_id = progress.add_task("Starting...", total=None)
+
+                    def on_step(step: str) -> None:
+                        progress.update(task_id, description=step)
+
+                    result = await asyncio.wait_for(
+                        ctx.syncer.sync(repo, path_filter=path, on_step=on_step),
+                        timeout=timeout,
+                    )
 
             if result.already_current:
                 console.print("Already up to date.")
@@ -255,6 +299,12 @@ def sync(
             if not dry_run:
                 table.add_row("Duration", f"{result.duration_seconds:.1f}s")
             console.print(table)
+        except TimeoutError:
+            err_console.print(
+                f"Error: Sync timed out after {timeout}s. "
+                "Try a smaller --path filter or increase --timeout."
+            )
+            raise typer.Exit(code=1)
         finally:
             await ctx.db.close()
 
