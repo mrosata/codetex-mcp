@@ -8,4 +8,5 @@ build/
 .env
 *.db
 *.sqlite3
+.coverage
 .DS_Store
