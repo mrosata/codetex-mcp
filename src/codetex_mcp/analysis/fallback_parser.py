@@ -79,7 +79,9 @@ _SYMBOL_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     ),
     # Ruby: def method_name(params)
     (
-        re.compile(r"^[ \t]*def\s+(?:self\.)?(?P<name>\w+[!?]?)\s*(?:\((?P<params>[^)]*)\))?"),
+        re.compile(
+            r"^[ \t]*def\s+(?:self\.)?(?P<name>\w+[!?]?)\s*(?:\((?P<params>[^)]*)\))?"
+        ),
         "function",
     ),
 ]
@@ -96,9 +98,7 @@ _IMPORT_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     ),
     # Python: from module import names (must come before generic import)
     (
-        re.compile(
-            r"^[ \t]*from\s+(?P<module>[\w.]+)\s+import\s+(?P<names>.+)"
-        ),
+        re.compile(r"^[ \t]*from\s+(?P<module>[\w.]+)\s+import\s+(?P<names>.+)"),
         "python_from",
     ),
     # JavaScript/TypeScript: import { names } from 'module' / import name from 'module'
@@ -129,9 +129,7 @@ _IMPORT_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     ),
     # Ruby: require 'module' / require_relative 'module'
     (
-        re.compile(
-            r"""^[ \t]*require(?:_relative)?\s+['"](?P<module>[^'"]+)['"]"""
-        ),
+        re.compile(r"""^[ \t]*require(?:_relative)?\s+['"](?P<module>[^'"]+)['"]"""),
         "ruby_require",
     ),
 ]
@@ -234,7 +232,16 @@ def _find_symbol_end(lines: list[str], start_idx: int, language: str | None) -> 
     start_indent = len(start_line) - len(start_line.lstrip())
 
     # For brace-delimited languages, count braces
-    if language in ("javascript", "typescript", "go", "rust", "java", "cpp", "c", "ruby"):
+    if language in (
+        "javascript",
+        "typescript",
+        "go",
+        "rust",
+        "java",
+        "cpp",
+        "c",
+        "ruby",
+    ):
         brace_count = 0
         found_open = False
         for i in range(start_idx, len(lines)):

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -40,7 +40,9 @@ class TestAnthropicProviderInit:
         assert provider._model == "claude-sonnet-4-5-20250929"
 
     def test_custom_model(self) -> None:
-        provider = AnthropicProvider(api_key="test-key", model="claude-haiku-4-5-20251001")
+        provider = AnthropicProvider(
+            api_key="test-key", model="claude-haiku-4-5-20251001"
+        )
         assert provider._model == "claude-haiku-4-5-20251001"
 
     def test_custom_rate_limiter(self) -> None:
@@ -200,9 +202,7 @@ class TestAnthropicProviderSummarizeBatch:
         import anthropic
 
         limiter = RateLimiter(max_concurrent=5, base_delay=0.01, max_delay=0.02)
-        provider = AnthropicProvider(
-            api_key="test-key", rate_limiter=limiter
-        )
+        provider = AnthropicProvider(api_key="test-key", rate_limiter=limiter)
 
         attempts = 0
 

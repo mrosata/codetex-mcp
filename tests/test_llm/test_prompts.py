@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import pytest
 
 from codetex_mcp.analysis.models import ParameterInfo, SymbolInfo
 from codetex_mcp.llm.prompts import tier1_prompt, tier2_prompt, tier3_prompt
@@ -153,7 +152,9 @@ class TestTier2Prompt:
                 end_line=5,
                 parameters=[
                     ParameterInfo(name="url", type_annotation="str"),
-                    ParameterInfo(name="timeout", type_annotation="int", default_value="30"),
+                    ParameterInfo(
+                        name="timeout", type_annotation="int", default_value="30"
+                    ),
                 ],
             ),
         ]
@@ -193,7 +194,9 @@ class TestTier3Prompt:
             signature="def process(data: list, verbose: bool = False)",
             parameters=[
                 ParameterInfo(name="data", type_annotation="list"),
-                ParameterInfo(name="verbose", type_annotation="bool", default_value="False"),
+                ParameterInfo(
+                    name="verbose", type_annotation="bool", default_value="False"
+                ),
             ],
         )
         result = tier3_prompt(symbol=symbol, file_context="")

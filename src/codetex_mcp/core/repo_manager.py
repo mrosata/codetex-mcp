@@ -50,9 +50,7 @@ def _repo_name_from_url(url: str) -> str:
 class RepoManager:
     """Manages repository lifecycle: clone, register local, list, get, remove."""
 
-    def __init__(
-        self, db: Database, git: GitOperations, config: Settings
-    ) -> None:
+    def __init__(self, db: Database, git: GitOperations, config: Settings) -> None:
         self._db = db
         self._git = git
         self._config = config
@@ -69,18 +67,14 @@ class RepoManager:
         # Check for duplicate before cloning
         existing = await get_repo_by_name(self._db, name)
         if existing is not None:
-            raise RepositoryAlreadyExistsError(
-                f"Repository '{name}' already exists"
-            )
+            raise RepositoryAlreadyExistsError(f"Repository '{name}' already exists")
 
         assert self._config.repos_dir is not None
         target_dir = self._config.repos_dir / name
         await self._git.clone(url, target_dir)
 
         default_branch = await self._git.get_default_branch(target_dir)
-        return await create_repo(
-            self._db, name, url, str(target_dir), default_branch
-        )
+        return await create_repo(self._db, name, url, str(target_dir), default_branch)
 
     async def add_local(self, path: Path) -> Repository:
         """Register an existing local git repository.
@@ -97,15 +91,11 @@ class RepoManager:
 
         existing = await get_repo_by_name(self._db, name)
         if existing is not None:
-            raise RepositoryAlreadyExistsError(
-                f"Repository '{name}' already exists"
-            )
+            raise RepositoryAlreadyExistsError(f"Repository '{name}' already exists")
 
         remote_url = await self._git.get_remote_url(path)
         default_branch = await self._git.get_default_branch(path)
-        return await create_repo(
-            self._db, name, remote_url, str(path), default_branch
-        )
+        return await create_repo(self._db, name, remote_url, str(path), default_branch)
 
     async def list_repos(self) -> list[Repository]:
         """Return all registered repositories."""
@@ -118,9 +108,7 @@ class RepoManager:
         """
         repo = await get_repo_by_name(self._db, name)
         if repo is None:
-            raise RepositoryNotFoundError(
-                f"Repository '{name}' not found"
-            )
+            raise RepositoryNotFoundError(f"Repository '{name}' not found")
         return repo
 
     async def remove_repo(self, name: str) -> None:

@@ -67,9 +67,7 @@ def repo_dir(tmp_path: Path) -> Path:
     (src / "main.py").write_text(
         "import os\n\ndef main():\n    print('hello')\n\nmain()\n"
     )
-    (src / "utils.py").write_text(
-        "def helper(x: int) -> str:\n    return str(x)\n"
-    )
+    (src / "utils.py").write_text("def helper(x: int) -> str:\n    return str(x)\n")
     return repo
 
 
@@ -85,7 +83,9 @@ def mock_git(repo_dir: Path) -> AsyncMock:
 def mock_parser() -> MagicMock:
     parser = MagicMock(spec=Parser)
 
-    def fake_parse(path: Path, content: str, language: str | None = None) -> FileAnalysis:
+    def fake_parse(
+        path: Path, content: str, language: str | None = None
+    ) -> FileAnalysis:
         if "main" in str(path):
             return FileAnalysis(
                 path=str(path),
@@ -147,8 +147,7 @@ def mock_embedder() -> MagicMock:
 @pytest_asyncio.fixture
 async def repo_id(db: Database, repo_dir: Path) -> int:
     cursor = await db.execute(
-        "INSERT INTO repositories (name, local_path, default_branch) "
-        "VALUES (?, ?, ?)",
+        "INSERT INTO repositories (name, local_path, default_branch) VALUES (?, ?, ?)",
         ("my-repo", str(repo_dir), "main"),
     )
     await db.conn.commit()
@@ -217,7 +216,9 @@ class TestIndexerInit:
 class TestFullIndex:
     @pytest.mark.asyncio
     async def test_full_index_returns_result(
-        self, indexer: Indexer, repo_record: Repository,
+        self,
+        indexer: Indexer,
+        repo_record: Repository,
     ) -> None:
         result = await indexer.index(repo_record)
         assert isinstance(result, IndexResult)
@@ -228,7 +229,10 @@ class TestFullIndex:
 
     @pytest.mark.asyncio
     async def test_full_index_stores_files(
-        self, indexer: Indexer, repo_record: Repository, db: Database,
+        self,
+        indexer: Indexer,
+        repo_record: Repository,
+        db: Database,
     ) -> None:
         await indexer.index(repo_record)
 
@@ -247,13 +251,15 @@ class TestFullIndex:
 
     @pytest.mark.asyncio
     async def test_full_index_stores_symbols(
-        self, indexer: Indexer, repo_record: Repository, db: Database,
+        self,
+        indexer: Indexer,
+        repo_record: Repository,
+        db: Database,
     ) -> None:
         await indexer.index(repo_record)
 
         cursor = await db.execute(
-            "SELECT name, kind, signature FROM symbols "
-            "WHERE repo_id = ? ORDER BY name",
+            "SELECT name, kind, signature FROM symbols WHERE repo_id = ? ORDER BY name",
             (repo_record.id,),
         )
         rows = await cursor.fetchall()
@@ -263,7 +269,10 @@ class TestFullIndex:
 
     @pytest.mark.asyncio
     async def test_full_index_stores_dependencies(
-        self, indexer: Indexer, repo_record: Repository, db: Database,
+        self,
+        indexer: Indexer,
+        repo_record: Repository,
+        db: Database,
     ) -> None:
         await indexer.index(repo_record)
 
@@ -277,7 +286,10 @@ class TestFullIndex:
 
     @pytest.mark.asyncio
     async def test_full_index_calls_llm_tier2(
-        self, indexer: Indexer, repo_record: Repository, mock_llm: AsyncMock,
+        self,
+        indexer: Indexer,
+        repo_record: Repository,
+        mock_llm: AsyncMock,
     ) -> None:
         await indexer.index(repo_record)
         # Tier 2: one call per file (batch)
@@ -288,7 +300,10 @@ class TestFullIndex:
 
     @pytest.mark.asyncio
     async def test_full_index_calls_llm_tier3(
-        self, indexer: Indexer, repo_record: Repository, mock_llm: AsyncMock,
+        self,
+        indexer: Indexer,
+        repo_record: Repository,
+        mock_llm: AsyncMock,
     ) -> None:
         await indexer.index(repo_record)
         # Tier 3: second batch call for summarizable symbols
@@ -299,7 +314,10 @@ class TestFullIndex:
 
     @pytest.mark.asyncio
     async def test_full_index_calls_llm_tier1(
-        self, indexer: Indexer, repo_record: Repository, mock_llm: AsyncMock,
+        self,
+        indexer: Indexer,
+        repo_record: Repository,
+        mock_llm: AsyncMock,
     ) -> None:
         await indexer.index(repo_record)
         # Tier 1: single summarize call
@@ -307,7 +325,10 @@ class TestFullIndex:
 
     @pytest.mark.asyncio
     async def test_full_index_stores_tier2_summaries(
-        self, indexer: Indexer, repo_record: Repository, db: Database,
+        self,
+        indexer: Indexer,
+        repo_record: Repository,
+        db: Database,
     ) -> None:
         await indexer.index(repo_record)
 
@@ -321,7 +342,10 @@ class TestFullIndex:
 
     @pytest.mark.asyncio
     async def test_full_index_stores_tier3_summaries(
-        self, indexer: Indexer, repo_record: Repository, db: Database,
+        self,
+        indexer: Indexer,
+        repo_record: Repository,
+        db: Database,
     ) -> None:
         await indexer.index(repo_record)
 
@@ -334,7 +358,10 @@ class TestFullIndex:
 
     @pytest.mark.asyncio
     async def test_full_index_generates_embeddings(
-        self, indexer: Indexer, repo_record: Repository, mock_embedder: MagicMock,
+        self,
+        indexer: Indexer,
+        repo_record: Repository,
+        mock_embedder: MagicMock,
     ) -> None:
         await indexer.index(repo_record)
         # embed_batch called for files and symbols
@@ -342,7 +369,10 @@ class TestFullIndex:
 
     @pytest.mark.asyncio
     async def test_full_index_stores_file_embeddings(
-        self, indexer: Indexer, repo_record: Repository, db: Database,
+        self,
+        indexer: Indexer,
+        repo_record: Repository,
+        db: Database,
     ) -> None:
         await indexer.index(repo_record)
 
@@ -355,7 +385,10 @@ class TestFullIndex:
 
     @pytest.mark.asyncio
     async def test_full_index_stores_symbol_embeddings(
-        self, indexer: Indexer, repo_record: Repository, db: Database,
+        self,
+        indexer: Indexer,
+        repo_record: Repository,
+        db: Database,
     ) -> None:
         await indexer.index(repo_record)
 
@@ -368,7 +401,10 @@ class TestFullIndex:
 
     @pytest.mark.asyncio
     async def test_full_index_stores_repo_overview(
-        self, indexer: Indexer, repo_record: Repository, db: Database,
+        self,
+        indexer: Indexer,
+        repo_record: Repository,
+        db: Database,
     ) -> None:
         await indexer.index(repo_record)
 
@@ -383,7 +419,10 @@ class TestFullIndex:
 
     @pytest.mark.asyncio
     async def test_full_index_updates_indexed_commit(
-        self, indexer: Indexer, repo_record: Repository, db: Database,
+        self,
+        indexer: Indexer,
+        repo_record: Repository,
+        db: Database,
     ) -> None:
         await indexer.index(repo_record)
 
@@ -398,7 +437,9 @@ class TestFullIndex:
 
     @pytest.mark.asyncio
     async def test_full_index_llm_calls_count(
-        self, indexer: Indexer, repo_record: Repository,
+        self,
+        indexer: Indexer,
+        repo_record: Repository,
     ) -> None:
         result = await indexer.index(repo_record)
         # 2 files (Tier 2) + 2 functions (Tier 3) + 1 (Tier 1) = 5
@@ -406,7 +447,9 @@ class TestFullIndex:
 
     @pytest.mark.asyncio
     async def test_full_index_token_count(
-        self, indexer: Indexer, repo_record: Repository,
+        self,
+        indexer: Indexer,
+        repo_record: Repository,
     ) -> None:
         result = await indexer.index(repo_record)
         assert result.tokens_used == 30  # 20 + 10
@@ -418,7 +461,9 @@ class TestFullIndex:
 class TestDryRun:
     @pytest.mark.asyncio
     async def test_dry_run_returns_estimates(
-        self, indexer: Indexer, repo_record: Repository,
+        self,
+        indexer: Indexer,
+        repo_record: Repository,
     ) -> None:
         result = await indexer.index(repo_record, dry_run=True)
         assert isinstance(result, IndexResult)
@@ -428,7 +473,9 @@ class TestDryRun:
 
     @pytest.mark.asyncio
     async def test_dry_run_estimates_llm_calls(
-        self, indexer: Indexer, repo_record: Repository,
+        self,
+        indexer: Indexer,
+        repo_record: Repository,
     ) -> None:
         result = await indexer.index(repo_record, dry_run=True)
         # 2 files (Tier 2) + 2 functions (Tier 3) + 1 (Tier 1) = 5
@@ -436,7 +483,10 @@ class TestDryRun:
 
     @pytest.mark.asyncio
     async def test_dry_run_no_llm_calls(
-        self, indexer: Indexer, repo_record: Repository, mock_llm: AsyncMock,
+        self,
+        indexer: Indexer,
+        repo_record: Repository,
+        mock_llm: AsyncMock,
     ) -> None:
         await indexer.index(repo_record, dry_run=True)
         mock_llm.summarize.assert_not_called()
@@ -444,7 +494,10 @@ class TestDryRun:
 
     @pytest.mark.asyncio
     async def test_dry_run_no_db_writes(
-        self, indexer: Indexer, repo_record: Repository, db: Database,
+        self,
+        indexer: Indexer,
+        repo_record: Repository,
+        db: Database,
     ) -> None:
         await indexer.index(repo_record, dry_run=True)
 
@@ -458,7 +511,10 @@ class TestDryRun:
 
     @pytest.mark.asyncio
     async def test_dry_run_no_embeddings(
-        self, indexer: Indexer, repo_record: Repository, mock_embedder: MagicMock,
+        self,
+        indexer: Indexer,
+        repo_record: Repository,
+        mock_embedder: MagicMock,
     ) -> None:
         await indexer.index(repo_record, dry_run=True)
         mock_embedder.embed_batch.assert_not_called()
@@ -470,14 +526,18 @@ class TestDryRun:
 class TestPathFilter:
     @pytest.mark.asyncio
     async def test_path_filter_restricts_files(
-        self, indexer: Indexer, repo_record: Repository,
+        self,
+        indexer: Indexer,
+        repo_record: Repository,
     ) -> None:
         result = await indexer.index(repo_record, path_filter="src/main")
         assert result.files_indexed == 1
 
     @pytest.mark.asyncio
     async def test_path_filter_no_match(
-        self, indexer: Indexer, repo_record: Repository,
+        self,
+        indexer: Indexer,
+        repo_record: Repository,
     ) -> None:
         result = await indexer.index(repo_record, path_filter="nonexistent/")
         assert result.files_indexed == 0
@@ -489,7 +549,9 @@ class TestPathFilter:
 class TestProgressCallback:
     @pytest.mark.asyncio
     async def test_on_progress_called(
-        self, indexer: Indexer, repo_record: Repository,
+        self,
+        indexer: Indexer,
+        repo_record: Repository,
     ) -> None:
         calls: list[tuple[int, int, str]] = []
 
@@ -592,7 +654,10 @@ class TestTier3SymbolFiltering:
 class TestReindex:
     @pytest.mark.asyncio
     async def test_reindex_upserts_not_duplicates(
-        self, indexer: Indexer, repo_record: Repository, db: Database,
+        self,
+        indexer: Indexer,
+        repo_record: Repository,
+        db: Database,
     ) -> None:
         await indexer.index(repo_record)
         await indexer.index(repo_record)

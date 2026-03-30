@@ -176,7 +176,9 @@ class TestPythonDocstringExtraction:
         assert result.symbols[0].docstring == "A docstring."
 
     def test_multiline_docstring(self) -> None:
-        content = 'def foo():\n    """First line.\n\n    Details here.\n    """\n    pass\n'
+        content = (
+            'def foo():\n    """First line.\n\n    Details here.\n    """\n    pass\n'
+        )
         parser = TreeSitterParser()
         result = parser.parse(content, "python")
         assert result.symbols[0].docstring is not None

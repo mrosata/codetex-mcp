@@ -34,7 +34,13 @@ async def db(db_path: Path) -> Database:  # type: ignore[misc]
 class TestCreateRepo:
     @pytest.mark.asyncio
     async def test_create_repo_returns_repository(self, db: Database) -> None:
-        repo = await create_repo(db, "my-repo", "https://github.com/user/my-repo.git", "/tmp/repos/my-repo", "main")
+        repo = await create_repo(
+            db,
+            "my-repo",
+            "https://github.com/user/my-repo.git",
+            "/tmp/repos/my-repo",
+            "main",
+        )
         assert isinstance(repo, Repository)
         assert repo.name == "my-repo"
         assert repo.remote_url == "https://github.com/user/my-repo.git"
@@ -63,7 +69,9 @@ class TestCreateRepo:
 class TestGetRepoByName:
     @pytest.mark.asyncio
     async def test_get_existing_repo(self, db: Database) -> None:
-        created = await create_repo(db, "find-me", "https://example.com/find-me.git", "/tmp/find-me", "main")
+        created = await create_repo(
+            db, "find-me", "https://example.com/find-me.git", "/tmp/find-me", "main"
+        )
         found = await get_repo_by_name(db, "find-me")
         assert found is not None
         assert found.id == created.id

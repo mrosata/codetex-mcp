@@ -32,8 +32,7 @@ async def db(db_path: Path) -> Database:  # type: ignore[misc]
 async def repo_id(db: Database) -> int:
     """Create a test repository and return its ID."""
     cursor = await db.execute(
-        "INSERT INTO repositories (name, local_path, default_branch) "
-        "VALUES (?, ?, ?)",
+        "INSERT INTO repositories (name, local_path, default_branch) VALUES (?, ?, ?)",
         ("test-repo", "/tmp/test-repo", "main"),
     )
     await db.conn.commit()
@@ -72,9 +71,7 @@ class TestGetRepoOverview:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_returns_none_for_nonexistent_repo(
-        self, store: ContextStore
-    ) -> None:
+    async def test_returns_none_for_nonexistent_repo(self, store: ContextStore) -> None:
         result = await store.get_repo_overview(9999)
         assert result is None
 
@@ -89,7 +86,16 @@ class TestGetFileContext:
             "INSERT INTO files (repo_id, path, language, lines_of_code, "
             "token_count, summary, role, imports_json) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (repo_id, "src/main.py", "python", 100, 500, "Main entry point", "entry", '["os", "sys"]'),
+            (
+                repo_id,
+                "src/main.py",
+                "python",
+                100,
+                500,
+                "Main entry point",
+                "entry",
+                '["os", "sys"]',
+            ),
         )
         await db.conn.commit()
         assert cursor.lastrowid is not None
@@ -185,11 +191,17 @@ class TestGetSymbolDetail:
             "summary, start_line, end_line, parameters_json, return_type, calls_json) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
-                file_id, repo_id, "process_data", "function",
+                file_id,
+                repo_id,
+                "process_data",
+                "function",
                 "def process_data(items: list) -> int:",
                 "Processes a list of items and returns the count.",
-                10, 30, '[{"name": "items", "type": "list"}]',
-                "int", '["validate", "transform"]',
+                10,
+                30,
+                '[{"name": "items", "type": "list"}]',
+                "int",
+                '["validate", "transform"]',
             ),
         )
         await db.conn.commit()
@@ -234,9 +246,7 @@ class TestGetSymbolDetail:
 
 class TestGetRepoStatus:
     @pytest.mark.asyncio
-    async def test_empty_repo_status(
-        self, store: ContextStore, repo_id: int
-    ) -> None:
+    async def test_empty_repo_status(self, store: ContextStore, repo_id: int) -> None:
         result = await store.get_repo_status(repo_id)
         assert isinstance(result, RepoStatus)
         assert result.indexed_commit is None
@@ -295,9 +305,7 @@ class TestGetRepoStatus:
         assert result.last_indexed_at is not None
 
     @pytest.mark.asyncio
-    async def test_status_nonexistent_repo(
-        self, store: ContextStore
-    ) -> None:
+    async def test_status_nonexistent_repo(self, store: ContextStore) -> None:
         """Status for a repo ID not in the DB returns zeros/None."""
         result = await store.get_repo_status(9999)
         assert result.indexed_commit is None

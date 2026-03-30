@@ -50,8 +50,18 @@ class TestUpsertSymbol:
         self, db: Database, repo_id: int, file_id: int
     ) -> None:
         symbol_id = await upsert_symbol(
-            db, file_id, repo_id, "my_func", "function",
-            "def my_func(x: int) -> str", None, 10, 20, None, "str", None,
+            db,
+            file_id,
+            repo_id,
+            "my_func",
+            "function",
+            "def my_func(x: int) -> str",
+            None,
+            10,
+            20,
+            None,
+            "str",
+            None,
         )
         assert symbol_id > 0
 
@@ -59,12 +69,23 @@ class TestUpsertSymbol:
     async def test_upsert_stores_all_fields(
         self, db: Database, repo_id: int, file_id: int
     ) -> None:
-        params = json.dumps([{"name": "x", "type_annotation": "int", "default_value": None}])
+        params = json.dumps(
+            [{"name": "x", "type_annotation": "int", "default_value": None}]
+        )
         calls = json.dumps(["print", "str"])
         await upsert_symbol(
-            db, file_id, repo_id, "process", "function",
-            "def process(x: int) -> str", "Process the input.",
-            5, 15, params, "str", calls,
+            db,
+            file_id,
+            repo_id,
+            "process",
+            "function",
+            "def process(x: int) -> str",
+            "Process the input.",
+            5,
+            15,
+            params,
+            "str",
+            calls,
         )
         record = await get_symbol(db, repo_id, "process")
         assert record is not None
@@ -90,8 +111,18 @@ class TestUpdateSymbolSummary:
         self, db: Database, repo_id: int, file_id: int
     ) -> None:
         symbol_id = await upsert_symbol(
-            db, file_id, repo_id, "compute", "function",
-            "def compute()", None, 1, 10, None, None, None,
+            db,
+            file_id,
+            repo_id,
+            "compute",
+            "function",
+            "def compute()",
+            None,
+            1,
+            10,
+            None,
+            None,
+            None,
         )
         await update_symbol_summary(db, symbol_id, "Computes the result")
         record = await get_symbol(db, repo_id, "compute")
@@ -105,8 +136,18 @@ class TestGetSymbol:
         self, db: Database, repo_id: int, file_id: int
     ) -> None:
         await upsert_symbol(
-            db, file_id, repo_id, "find_me", "function",
-            "def find_me()", None, 1, 5, None, None, None,
+            db,
+            file_id,
+            repo_id,
+            "find_me",
+            "function",
+            "def find_me()",
+            None,
+            1,
+            5,
+            None,
+            None,
+            None,
         )
         record = await get_symbol(db, repo_id, "find_me")
         assert record is not None
@@ -131,12 +172,32 @@ class TestListSymbolsByFile:
         self, db: Database, repo_id: int, file_id: int
     ) -> None:
         await upsert_symbol(
-            db, file_id, repo_id, "second_func", "function",
-            "def second_func()", None, 20, 30, None, None, None,
+            db,
+            file_id,
+            repo_id,
+            "second_func",
+            "function",
+            "def second_func()",
+            None,
+            20,
+            30,
+            None,
+            None,
+            None,
         )
         await upsert_symbol(
-            db, file_id, repo_id, "first_func", "function",
-            "def first_func()", None, 1, 10, None, None, None,
+            db,
+            file_id,
+            repo_id,
+            "first_func",
+            "function",
+            "def first_func()",
+            None,
+            1,
+            10,
+            None,
+            None,
+            None,
         )
         symbols = await list_symbols_by_file(db, file_id)
         assert len(symbols) == 2
@@ -150,21 +211,39 @@ class TestDeleteSymbolsByFile:
         self, db: Database, repo_id: int, file_id: int
     ) -> None:
         await upsert_symbol(
-            db, file_id, repo_id, "func_a", "function",
-            "def func_a()", None, 1, 5, None, None, None,
+            db,
+            file_id,
+            repo_id,
+            "func_a",
+            "function",
+            "def func_a()",
+            None,
+            1,
+            5,
+            None,
+            None,
+            None,
         )
         await upsert_symbol(
-            db, file_id, repo_id, "func_b", "function",
-            "def func_b()", None, 10, 15, None, None, None,
+            db,
+            file_id,
+            repo_id,
+            "func_b",
+            "function",
+            "def func_b()",
+            None,
+            10,
+            15,
+            None,
+            None,
+            None,
         )
         await delete_symbols_by_file(db, file_id)
         symbols = await list_symbols_by_file(db, file_id)
         assert symbols == []
 
     @pytest.mark.asyncio
-    async def test_delete_nonexistent_file_does_not_raise(
-        self, db: Database
-    ) -> None:
+    async def test_delete_nonexistent_file_does_not_raise(self, db: Database) -> None:
         await delete_symbols_by_file(db, 9999)
 
 
@@ -177,8 +256,18 @@ class TestCascadeBehavior:
 
         fid = await upsert_file(db, repo_id, "src/cascade.py", "python", 10, 50, None)
         await upsert_symbol(
-            db, fid, repo_id, "cascade_func", "function",
-            "def cascade_func()", None, 1, 5, None, None, None,
+            db,
+            fid,
+            repo_id,
+            "cascade_func",
+            "function",
+            "def cascade_func()",
+            None,
+            1,
+            5,
+            None,
+            None,
+            None,
         )
         await delete_file(db, fid)
         symbols = await list_symbols_by_file(db, fid)

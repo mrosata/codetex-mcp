@@ -61,9 +61,7 @@ def repo_dir(tmp_path: Path) -> Path:
     (src / "main.py").write_text(
         "import os\n\ndef main():\n    print('hello')\n\nmain()\n"
     )
-    (src / "utils.py").write_text(
-        "def helper(x: int) -> str:\n    return str(x)\n"
-    )
+    (src / "utils.py").write_text("def helper(x: int) -> str:\n    return str(x)\n")
     return repo
 
 
@@ -84,7 +82,9 @@ def mock_git(repo_dir: Path) -> AsyncMock:
 def mock_parser() -> MagicMock:
     parser = MagicMock(spec=Parser)
 
-    def fake_parse(path: Path, content: str, language: str | None = None) -> FileAnalysis:
+    def fake_parse(
+        path: Path, content: str, language: str | None = None
+    ) -> FileAnalysis:
         if "main" in str(path):
             return FileAnalysis(
                 path=str(path),
@@ -188,7 +188,9 @@ def repo_record(repo_id: int, repo_dir: Path) -> Repository:
 
 @pytest_asyncio.fixture
 async def indexed_repo(
-    db: Database, repo_id: int, repo_dir: Path,
+    db: Database,
+    repo_id: int,
+    repo_dir: Path,
 ) -> None:
     """Pre-populate the DB with file/symbol/embedding records to simulate a prior index."""
     # Insert old_file.py
@@ -213,6 +215,7 @@ async def indexed_repo(
 
     # Insert embeddings (using raw bytes)
     import struct
+
     embedding = struct.pack(f"{384}f", *([0.5] * 384))
     await db.execute(
         "INSERT INTO vec_file_embeddings(file_id, embedding) VALUES (?, ?)",
@@ -289,7 +292,10 @@ class TestSyncerInit:
 class TestAlreadyCurrent:
     @pytest.mark.asyncio
     async def test_returns_already_current_when_same_commit(
-        self, syncer: Syncer, repo_record: Repository, mock_git: AsyncMock,
+        self,
+        syncer: Syncer,
+        repo_record: Repository,
+        mock_git: AsyncMock,
     ) -> None:
         mock_git.get_head_commit.return_value = "old_commit_sha"
         result = await syncer.sync(repo_record)
@@ -306,7 +312,10 @@ class TestAlreadyCurrent:
 
     @pytest.mark.asyncio
     async def test_no_diff_called_when_current(
-        self, syncer: Syncer, repo_record: Repository, mock_git: AsyncMock,
+        self,
+        syncer: Syncer,
+        repo_record: Repository,
+        mock_git: AsyncMock,
     ) -> None:
         mock_git.get_head_commit.return_value = "old_commit_sha"
         await syncer.sync(repo_record)
@@ -319,7 +328,10 @@ class TestAlreadyCurrent:
 class TestFullSync:
     @pytest.mark.asyncio
     async def test_sync_returns_result(
-        self, syncer: Syncer, repo_record: Repository, indexed_repo: None,
+        self,
+        syncer: Syncer,
+        repo_record: Repository,
+        indexed_repo: None,
         repo_dir: Path,
     ) -> None:
         # Create new_file.py on disk
@@ -338,8 +350,12 @@ class TestFullSync:
 
     @pytest.mark.asyncio
     async def test_sync_deletes_removed_files(
-        self, syncer: Syncer, repo_record: Repository, indexed_repo: None,
-        db: Database, repo_dir: Path,
+        self,
+        syncer: Syncer,
+        repo_record: Repository,
+        indexed_repo: None,
+        db: Database,
+        repo_dir: Path,
     ) -> None:
         (repo_dir / "src" / "new_file.py").write_text("def new_func():\n    pass\n")
         await syncer.sync(repo_record)
@@ -355,8 +371,12 @@ class TestFullSync:
 
     @pytest.mark.asyncio
     async def test_sync_deletes_removed_symbols(
-        self, syncer: Syncer, repo_record: Repository, indexed_repo: None,
-        db: Database, repo_dir: Path,
+        self,
+        syncer: Syncer,
+        repo_record: Repository,
+        indexed_repo: None,
+        db: Database,
+        repo_dir: Path,
     ) -> None:
         (repo_dir / "src" / "new_file.py").write_text("def new_func():\n    pass\n")
         await syncer.sync(repo_record)
@@ -372,8 +392,12 @@ class TestFullSync:
 
     @pytest.mark.asyncio
     async def test_sync_deletes_file_embeddings_for_removed(
-        self, syncer: Syncer, repo_record: Repository, indexed_repo: None,
-        db: Database, repo_dir: Path,
+        self,
+        syncer: Syncer,
+        repo_record: Repository,
+        indexed_repo: None,
+        db: Database,
+        repo_dir: Path,
     ) -> None:
         # Get the old file's ID before sync
         cursor = await db.execute(
@@ -398,8 +422,12 @@ class TestFullSync:
 
     @pytest.mark.asyncio
     async def test_sync_stores_added_files(
-        self, syncer: Syncer, repo_record: Repository, indexed_repo: None,
-        db: Database, repo_dir: Path,
+        self,
+        syncer: Syncer,
+        repo_record: Repository,
+        indexed_repo: None,
+        db: Database,
+        repo_dir: Path,
     ) -> None:
         (repo_dir / "src" / "new_file.py").write_text("def new_func():\n    pass\n")
         await syncer.sync(repo_record)
@@ -414,8 +442,12 @@ class TestFullSync:
 
     @pytest.mark.asyncio
     async def test_sync_updates_modified_files(
-        self, syncer: Syncer, repo_record: Repository, indexed_repo: None,
-        db: Database, repo_dir: Path,
+        self,
+        syncer: Syncer,
+        repo_record: Repository,
+        indexed_repo: None,
+        db: Database,
+        repo_dir: Path,
     ) -> None:
         (repo_dir / "src" / "new_file.py").write_text("def new_func():\n    pass\n")
         await syncer.sync(repo_record)
@@ -431,8 +463,12 @@ class TestFullSync:
 
     @pytest.mark.asyncio
     async def test_sync_calls_llm_tier2(
-        self, syncer: Syncer, repo_record: Repository, indexed_repo: None,
-        mock_llm: AsyncMock, repo_dir: Path,
+        self,
+        syncer: Syncer,
+        repo_record: Repository,
+        indexed_repo: None,
+        mock_llm: AsyncMock,
+        repo_dir: Path,
     ) -> None:
         (repo_dir / "src" / "new_file.py").write_text("def new_func():\n    pass\n")
         await syncer.sync(repo_record)
@@ -445,8 +481,12 @@ class TestFullSync:
 
     @pytest.mark.asyncio
     async def test_sync_calls_llm_tier3(
-        self, syncer: Syncer, repo_record: Repository, indexed_repo: None,
-        mock_llm: AsyncMock, repo_dir: Path,
+        self,
+        syncer: Syncer,
+        repo_record: Repository,
+        indexed_repo: None,
+        mock_llm: AsyncMock,
+        repo_dir: Path,
     ) -> None:
         (repo_dir / "src" / "new_file.py").write_text("def new_func():\n    pass\n")
         await syncer.sync(repo_record)
@@ -459,8 +499,12 @@ class TestFullSync:
 
     @pytest.mark.asyncio
     async def test_sync_generates_embeddings(
-        self, syncer: Syncer, repo_record: Repository, indexed_repo: None,
-        mock_embedder: MagicMock, repo_dir: Path,
+        self,
+        syncer: Syncer,
+        repo_record: Repository,
+        indexed_repo: None,
+        mock_embedder: MagicMock,
+        repo_dir: Path,
     ) -> None:
         (repo_dir / "src" / "new_file.py").write_text("def new_func():\n    pass\n")
         await syncer.sync(repo_record)
@@ -470,8 +514,12 @@ class TestFullSync:
 
     @pytest.mark.asyncio
     async def test_sync_updates_indexed_commit(
-        self, syncer: Syncer, repo_record: Repository, indexed_repo: None,
-        db: Database, repo_dir: Path,
+        self,
+        syncer: Syncer,
+        repo_record: Repository,
+        indexed_repo: None,
+        db: Database,
+        repo_dir: Path,
     ) -> None:
         (repo_dir / "src" / "new_file.py").write_text("def new_func():\n    pass\n")
         await syncer.sync(repo_record)
@@ -487,7 +535,10 @@ class TestFullSync:
 
     @pytest.mark.asyncio
     async def test_sync_llm_calls_count(
-        self, syncer: Syncer, repo_record: Repository, indexed_repo: None,
+        self,
+        syncer: Syncer,
+        repo_record: Repository,
+        indexed_repo: None,
         repo_dir: Path,
     ) -> None:
         (repo_dir / "src" / "new_file.py").write_text("def new_func():\n    pass\n")
@@ -498,7 +549,10 @@ class TestFullSync:
 
     @pytest.mark.asyncio
     async def test_sync_token_count(
-        self, syncer: Syncer, repo_record: Repository, indexed_repo: None,
+        self,
+        syncer: Syncer,
+        repo_record: Repository,
+        indexed_repo: None,
         repo_dir: Path,
     ) -> None:
         (repo_dir / "src" / "new_file.py").write_text("def new_func():\n    pass\n")
@@ -514,8 +568,12 @@ class TestFullSync:
 class TestTier1Rebuild:
     @pytest.mark.asyncio
     async def test_tier1_rebuilt_when_ratio_exceeds_threshold(
-        self, syncer: Syncer, repo_record: Repository, indexed_repo: None,
-        mock_llm: AsyncMock, repo_dir: Path,
+        self,
+        syncer: Syncer,
+        repo_record: Repository,
+        indexed_repo: None,
+        mock_llm: AsyncMock,
+        repo_dir: Path,
     ) -> None:
         (repo_dir / "src" / "new_file.py").write_text("def new_func():\n    pass\n")
         result = await syncer.sync(repo_record)
@@ -527,8 +585,13 @@ class TestTier1Rebuild:
 
     @pytest.mark.asyncio
     async def test_tier1_not_rebuilt_when_ratio_below_threshold(
-        self, db: Database, mock_parser: MagicMock, mock_llm: AsyncMock,
-        mock_embedder: MagicMock, repo_dir: Path, repo_id: int,
+        self,
+        db: Database,
+        mock_parser: MagicMock,
+        mock_llm: AsyncMock,
+        mock_embedder: MagicMock,
+        repo_dir: Path,
+        repo_id: int,
     ) -> None:
         # Create config with very high threshold
         config = Settings(
@@ -557,9 +620,13 @@ class TestTier1Rebuild:
         await db.conn.commit()
 
         repo_record = Repository(
-            id=repo_id, name="my-repo", remote_url=None,
-            local_path=str(repo_dir), default_branch="main",
-            indexed_commit="old_commit_sha", last_indexed_at=None,
+            id=repo_id,
+            name="my-repo",
+            remote_url=None,
+            local_path=str(repo_dir),
+            default_branch="main",
+            indexed_commit="old_commit_sha",
+            last_indexed_at=None,
             created_at="2024-01-01T00:00:00",
         )
 
@@ -571,8 +638,12 @@ class TestTier1Rebuild:
 
     @pytest.mark.asyncio
     async def test_tier1_stores_overview(
-        self, syncer: Syncer, repo_record: Repository, indexed_repo: None,
-        db: Database, repo_dir: Path,
+        self,
+        syncer: Syncer,
+        repo_record: Repository,
+        indexed_repo: None,
+        db: Database,
+        repo_dir: Path,
     ) -> None:
         (repo_dir / "src" / "new_file.py").write_text("def new_func():\n    pass\n")
         await syncer.sync(repo_record)
@@ -593,7 +664,9 @@ class TestTier1Rebuild:
 class TestDryRun:
     @pytest.mark.asyncio
     async def test_dry_run_returns_estimates(
-        self, syncer: Syncer, repo_record: Repository,
+        self,
+        syncer: Syncer,
+        repo_record: Repository,
     ) -> None:
         result = await syncer.sync(repo_record, dry_run=True)
 
@@ -605,7 +678,10 @@ class TestDryRun:
 
     @pytest.mark.asyncio
     async def test_dry_run_no_llm_calls(
-        self, syncer: Syncer, repo_record: Repository, mock_llm: AsyncMock,
+        self,
+        syncer: Syncer,
+        repo_record: Repository,
+        mock_llm: AsyncMock,
     ) -> None:
         await syncer.sync(repo_record, dry_run=True)
         mock_llm.summarize.assert_not_called()
@@ -613,7 +689,10 @@ class TestDryRun:
 
     @pytest.mark.asyncio
     async def test_dry_run_no_db_writes(
-        self, syncer: Syncer, repo_record: Repository, db: Database,
+        self,
+        syncer: Syncer,
+        repo_record: Repository,
+        db: Database,
     ) -> None:
         await syncer.sync(repo_record, dry_run=True)
 
@@ -628,7 +707,10 @@ class TestDryRun:
 
     @pytest.mark.asyncio
     async def test_dry_run_no_embeddings(
-        self, syncer: Syncer, repo_record: Repository, mock_embedder: MagicMock,
+        self,
+        syncer: Syncer,
+        repo_record: Repository,
+        mock_embedder: MagicMock,
     ) -> None:
         await syncer.sync(repo_record, dry_run=True)
         mock_embedder.embed.assert_not_called()
@@ -636,7 +718,9 @@ class TestDryRun:
 
     @pytest.mark.asyncio
     async def test_dry_run_estimates_llm_calls(
-        self, syncer: Syncer, repo_record: Repository,
+        self,
+        syncer: Syncer,
+        repo_record: Repository,
     ) -> None:
         result = await syncer.sync(repo_record, dry_run=True)
         # 2 changed files * 2 (Tier 2 + Tier 3) + 1 (Tier 1) = 5
@@ -649,7 +733,10 @@ class TestDryRun:
 class TestPathFilter:
     @pytest.mark.asyncio
     async def test_path_filter_restricts_scope(
-        self, syncer: Syncer, repo_record: Repository, indexed_repo: None,
+        self,
+        syncer: Syncer,
+        repo_record: Repository,
+        indexed_repo: None,
         repo_dir: Path,
     ) -> None:
         (repo_dir / "src" / "new_file.py").write_text("def new_func():\n    pass\n")
@@ -662,7 +749,9 @@ class TestPathFilter:
 
     @pytest.mark.asyncio
     async def test_path_filter_no_match(
-        self, syncer: Syncer, repo_record: Repository,
+        self,
+        syncer: Syncer,
+        repo_record: Repository,
     ) -> None:
         result = await syncer.sync(repo_record, path_filter="nonexistent/")
 
@@ -716,8 +805,13 @@ class TestErrorHandling:
 class TestNoIndex:
     @pytest.mark.asyncio
     async def test_sync_with_no_prior_index(
-        self, db: Database, mock_git: AsyncMock, mock_parser: MagicMock,
-        mock_llm: AsyncMock, mock_embedder: MagicMock, config: Settings,
+        self,
+        db: Database,
+        mock_git: AsyncMock,
+        mock_parser: MagicMock,
+        mock_llm: AsyncMock,
+        mock_embedder: MagicMock,
+        config: Settings,
         repo_dir: Path,
     ) -> None:
         """Sync with indexed_commit=None (never indexed before) still works."""
@@ -730,14 +824,21 @@ class TestNoIndex:
         assert cursor.lastrowid is not None
 
         repo = Repository(
-            id=cursor.lastrowid, name="fresh-repo", remote_url=None,
-            local_path=str(repo_dir), default_branch="main",
-            indexed_commit=None, last_indexed_at=None,
+            id=cursor.lastrowid,
+            name="fresh-repo",
+            remote_url=None,
+            local_path=str(repo_dir),
+            default_branch="main",
+            indexed_commit=None,
+            last_indexed_at=None,
             created_at="2024-01-01T00:00:00",
         )
 
         mock_git.diff_commits.return_value = DiffResult(
-            added=["src/main.py"], modified=[], deleted=[], renamed=[],
+            added=["src/main.py"],
+            modified=[],
+            deleted=[],
+            renamed=[],
         )
 
         syncer = Syncer(db, mock_git, mock_parser, mock_llm, mock_embedder, config)

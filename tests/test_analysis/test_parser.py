@@ -110,10 +110,7 @@ class TestParseFile:
 
     def test_python_parse_extracts_symbols(self) -> None:
         content = (
-            "import os\n"
-            "\n"
-            "def hello(name: str) -> str:\n"
-            "    return f'Hello, {name}'\n"
+            "import os\n\ndef hello(name: str) -> str:\n    return f'Hello, {name}'\n"
         )
         parser = _make_parser()
         result = parser.parse_file(Path("greet.py"), content)
@@ -146,11 +143,7 @@ class TestTreeSitterFallbackDispatch:
             return
 
         parser = _make_parser()
-        content = (
-            "class MyClass:\n"
-            "    def method(self) -> None:\n"
-            "        pass\n"
-        )
+        content = "class MyClass:\n    def method(self) -> None:\n        pass\n"
         result = parser.parse_file(Path("test.py"), content)
         # Tree-sitter distinguishes methods from functions
         method = next(s for s in result.symbols if s.name == "method")
@@ -159,7 +152,7 @@ class TestTreeSitterFallbackDispatch:
     def test_falls_back_for_unsupported_language(self) -> None:
         """When no tree-sitter grammar, should use fallback parser."""
         parser = _make_parser()
-        content = "func main() {\n    fmt.Println(\"hello\")\n}\n"
+        content = 'func main() {\n    fmt.Println("hello")\n}\n'
         result = parser.parse_file(Path("main.go"), content)
         # Go grammar likely not installed, so fallback is used
         # Either way, should produce valid results

@@ -107,9 +107,13 @@ class Settings:
         if "max_file_size_kb" in indexing:
             settings.max_file_size_kb = int(indexing["max_file_size_kb"])
         if "max_concurrent_llm_calls" in indexing:
-            settings.max_concurrent_llm_calls = int(indexing["max_concurrent_llm_calls"])
+            settings.max_concurrent_llm_calls = int(
+                indexing["max_concurrent_llm_calls"]
+            )
         if "tier1_rebuild_threshold" in indexing:
-            settings.tier1_rebuild_threshold = float(indexing["tier1_rebuild_threshold"])
+            settings.tier1_rebuild_threshold = float(
+                indexing["tier1_rebuild_threshold"]
+            )
         if "exclude_patterns" in indexing:
             settings.default_excludes = indexing["exclude_patterns"]
 

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest
@@ -175,19 +174,25 @@ class TestSettingsEnvOverride:
         s = Settings._apply_env(s)
         assert s.max_file_size_kb == 2048
 
-    def test_env_overrides_max_concurrent(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_env_overrides_max_concurrent(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         monkeypatch.setenv("CODETEX_MAX_CONCURRENT_LLM", "20")
         s = Settings()
         s = Settings._apply_env(s)
         assert s.max_concurrent_llm_calls == 20
 
-    def test_env_overrides_tier1_threshold(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_env_overrides_tier1_threshold(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         monkeypatch.setenv("CODETEX_TIER1_THRESHOLD", "0.50")
         s = Settings()
         s = Settings._apply_env(s)
         assert s.tier1_rebuild_threshold == 0.50
 
-    def test_env_overrides_embedding_model(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_env_overrides_embedding_model(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         monkeypatch.setenv("CODETEX_EMBEDDING_MODEL", "custom-embed")
         s = Settings()
         s = Settings._apply_env(s)
@@ -195,7 +200,9 @@ class TestSettingsEnvOverride:
 
 
 class TestSettingsLoad:
-    def test_load_creates_directories(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_load_creates_directories(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         data_dir = tmp_path / "codetex-data"
         monkeypatch.setenv("CODETEX_DATA_DIR", str(data_dir))
         # Clear any ANTHROPIC_API_KEY that might be set
@@ -234,7 +241,9 @@ api_key = "from-toml-key"
         # Env var overrode the api_key
         assert s.llm_api_key == "from-env-key"
 
-    def test_load_without_toml_file(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_load_without_toml_file(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Load works when no config.toml exists."""
         data_dir = tmp_path / "no-config"
         monkeypatch.setenv("CODETEX_DATA_DIR", str(data_dir))

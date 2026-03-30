@@ -38,8 +38,7 @@ async def db(db_path: Path) -> Database:  # type: ignore[misc]
 @pytest_asyncio.fixture
 async def repo_id(db: Database) -> int:
     cursor = await db.execute(
-        "INSERT INTO repositories (name, local_path, default_branch) "
-        "VALUES (?, ?, ?)",
+        "INSERT INTO repositories (name, local_path, default_branch) VALUES (?, ?, ?)",
         ("test-repo", "/tmp/test-repo", "main"),
     )
     await db.conn.commit()
@@ -170,15 +169,9 @@ class TestSearch:
     async def test_results_sorted_by_score(
         self, engine: SearchEngine, db: Database, repo_id: int
     ) -> None:
-        await _insert_file_with_embedding(
-            db, repo_id, "src/a.py", "A file", 1.0
-        )
-        await _insert_file_with_embedding(
-            db, repo_id, "src/b.py", "B file", 3.0
-        )
-        await _insert_file_with_embedding(
-            db, repo_id, "src/c.py", "C file", 2.0
-        )
+        await _insert_file_with_embedding(db, repo_id, "src/a.py", "A file", 1.0)
+        await _insert_file_with_embedding(db, repo_id, "src/b.py", "B file", 3.0)
+        await _insert_file_with_embedding(db, repo_id, "src/c.py", "C file", 2.0)
 
         results = await engine.search(repo_id, "query")
         scores = [r.score for r in results]
@@ -207,9 +200,7 @@ class TestSearch:
     async def test_handles_null_summary(
         self, engine: SearchEngine, db: Database, repo_id: int
     ) -> None:
-        await _insert_file_with_embedding(
-            db, repo_id, "src/empty.py", None, 1.0
-        )
+        await _insert_file_with_embedding(db, repo_id, "src/empty.py", None, 1.0)
 
         results = await engine.search(repo_id, "query")
         assert len(results) == 1

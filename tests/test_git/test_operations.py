@@ -6,7 +6,6 @@ import subprocess
 from pathlib import Path
 
 import pytest
-import pytest_asyncio
 
 from codetex_mcp.config.settings import Settings
 from codetex_mcp.exceptions import GitAuthError, GitError
@@ -31,17 +30,23 @@ def git_repo(tmp_path: Path) -> Path:
     subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
     subprocess.run(
         ["git", "config", "user.email", "test@test.com"],
-        cwd=repo, check=True, capture_output=True,
+        cwd=repo,
+        check=True,
+        capture_output=True,
     )
     subprocess.run(
         ["git", "config", "user.name", "Test"],
-        cwd=repo, check=True, capture_output=True,
+        cwd=repo,
+        check=True,
+        capture_output=True,
     )
     (repo / "README.md").write_text("# Hello\n")
     subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
     subprocess.run(
         ["git", "commit", "-m", "Initial commit"],
-        cwd=repo, check=True, capture_output=True,
+        cwd=repo,
+        check=True,
+        capture_output=True,
     )
     return repo
 
@@ -59,7 +64,10 @@ class TestGetHeadCommit:
     ) -> None:
         result = subprocess.run(
             ["git", "rev-parse", "HEAD"],
-            cwd=git_repo, capture_output=True, text=True, check=True,
+            cwd=git_repo,
+            capture_output=True,
+            text=True,
+            check=True,
         )
         expected = result.stdout.strip()
         sha = await git_ops.get_head_commit(git_repo)
@@ -90,7 +98,9 @@ class TestGetDefaultBranch:
     ) -> None:
         subprocess.run(
             ["git", "checkout", "-b", "develop"],
-            cwd=git_repo, check=True, capture_output=True,
+            cwd=git_repo,
+            check=True,
+            capture_output=True,
         )
         branch = await git_ops.get_default_branch(git_repo)
         assert branch == "develop"
@@ -110,7 +120,9 @@ class TestGetRemoteUrl:
     ) -> None:
         subprocess.run(
             ["git", "remote", "add", "origin", "https://github.com/user/repo.git"],
-            cwd=git_repo, check=True, capture_output=True,
+            cwd=git_repo,
+            check=True,
+            capture_output=True,
         )
         url = await git_ops.get_remote_url(git_repo)
         assert url == "https://github.com/user/repo.git"
@@ -118,15 +130,17 @@ class TestGetRemoteUrl:
 
 class TestDiffCommits:
     @pytest.mark.asyncio
-    async def test_added_file(
-        self, git_ops: GitOperations, git_repo: Path
-    ) -> None:
+    async def test_added_file(self, git_ops: GitOperations, git_repo: Path) -> None:
         old_sha = await git_ops.get_head_commit(git_repo)
         (git_repo / "new_file.py").write_text("print('hello')\n")
-        subprocess.run(["git", "add", "."], cwd=git_repo, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "add", "."], cwd=git_repo, check=True, capture_output=True
+        )
         subprocess.run(
             ["git", "commit", "-m", "Add new file"],
-            cwd=git_repo, check=True, capture_output=True,
+            cwd=git_repo,
+            check=True,
+            capture_output=True,
         )
         new_sha = await git_ops.get_head_commit(git_repo)
         diff = await git_ops.diff_commits(git_repo, old_sha, new_sha)
@@ -135,61 +149,62 @@ class TestDiffCommits:
         assert diff.deleted == []
 
     @pytest.mark.asyncio
-    async def test_modified_file(
-        self, git_ops: GitOperations, git_repo: Path
-    ) -> None:
+    async def test_modified_file(self, git_ops: GitOperations, git_repo: Path) -> None:
         old_sha = await git_ops.get_head_commit(git_repo)
         (git_repo / "README.md").write_text("# Updated\n")
-        subprocess.run(["git", "add", "."], cwd=git_repo, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "add", "."], cwd=git_repo, check=True, capture_output=True
+        )
         subprocess.run(
             ["git", "commit", "-m", "Modify readme"],
-            cwd=git_repo, check=True, capture_output=True,
+            cwd=git_repo,
+            check=True,
+            capture_output=True,
         )
         new_sha = await git_ops.get_head_commit(git_repo)
         diff = await git_ops.diff_commits(git_repo, old_sha, new_sha)
         assert "README.md" in diff.modified
 
     @pytest.mark.asyncio
-    async def test_deleted_file(
-        self, git_ops: GitOperations, git_repo: Path
-    ) -> None:
+    async def test_deleted_file(self, git_ops: GitOperations, git_repo: Path) -> None:
         old_sha = await git_ops.get_head_commit(git_repo)
         subprocess.run(
             ["git", "rm", "README.md"],
-            cwd=git_repo, check=True, capture_output=True,
+            cwd=git_repo,
+            check=True,
+            capture_output=True,
         )
         subprocess.run(
             ["git", "commit", "-m", "Delete readme"],
-            cwd=git_repo, check=True, capture_output=True,
+            cwd=git_repo,
+            check=True,
+            capture_output=True,
         )
         new_sha = await git_ops.get_head_commit(git_repo)
         diff = await git_ops.diff_commits(git_repo, old_sha, new_sha)
         assert "README.md" in diff.deleted
 
     @pytest.mark.asyncio
-    async def test_renamed_file(
-        self, git_ops: GitOperations, git_repo: Path
-    ) -> None:
+    async def test_renamed_file(self, git_ops: GitOperations, git_repo: Path) -> None:
         old_sha = await git_ops.get_head_commit(git_repo)
         subprocess.run(
             ["git", "mv", "README.md", "DOCS.md"],
-            cwd=git_repo, check=True, capture_output=True,
+            cwd=git_repo,
+            check=True,
+            capture_output=True,
         )
         subprocess.run(
             ["git", "commit", "-m", "Rename readme"],
-            cwd=git_repo, check=True, capture_output=True,
+            cwd=git_repo,
+            check=True,
+            capture_output=True,
         )
         new_sha = await git_ops.get_head_commit(git_repo)
         diff = await git_ops.diff_commits(git_repo, old_sha, new_sha)
-        assert any(
-            old == "README.md" and new == "DOCS.md"
-            for old, new in diff.renamed
-        )
+        assert any(old == "README.md" and new == "DOCS.md" for old, new in diff.renamed)
 
     @pytest.mark.asyncio
-    async def test_empty_diff(
-        self, git_ops: GitOperations, git_repo: Path
-    ) -> None:
+    async def test_empty_diff(self, git_ops: GitOperations, git_repo: Path) -> None:
         sha = await git_ops.get_head_commit(git_repo)
         diff = await git_ops.diff_commits(git_repo, sha, sha)
         assert diff.added == []
@@ -241,7 +256,9 @@ class TestListTrackedFiles:
         self, git_ops: GitOperations, git_repo: Path
     ) -> None:
         (git_repo / "new.py").write_text("x = 1\n")
-        subprocess.run(["git", "add", "new.py"], cwd=git_repo, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "add", "new.py"], cwd=git_repo, check=True, capture_output=True
+        )
         files = await git_ops.list_tracked_files(git_repo)
         assert "new.py" in files
         assert "README.md" in files

@@ -79,9 +79,7 @@ class TestFileAnalysis:
             path="test.py",
             language="python",
             imports=[ImportInfo(module="os")],
-            symbols=[
-                SymbolInfo(name="main", kind="function", signature="def main()")
-            ],
+            symbols=[SymbolInfo(name="main", kind="function", signature="def main()")],
             lines_of_code=10,
             token_count=50,
         )

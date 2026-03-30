@@ -110,7 +110,9 @@ class TestGetRepoOverview:
     @pytest.mark.asyncio
     async def test_returns_overview(self, mock_ctx: AppContext) -> None:
         mock_ctx.repo_manager.get_repo.return_value = _make_repo()
-        mock_ctx.context_store.get_repo_overview.return_value = "# My Repo\n\nOverview text."
+        mock_ctx.context_store.get_repo_overview.return_value = (
+            "# My Repo\n\nOverview text."
+        )
 
         server = server_mod.create_server()
         with patch.object(server_mod, "_app_ctx", mock_ctx):
@@ -132,7 +134,9 @@ class TestGetRepoOverview:
 
     @pytest.mark.asyncio
     async def test_repo_not_found_raises(self, mock_ctx: AppContext) -> None:
-        mock_ctx.repo_manager.get_repo.side_effect = RepositoryNotFoundError("not found")
+        mock_ctx.repo_manager.get_repo.side_effect = RepositoryNotFoundError(
+            "not found"
+        )
 
         server = server_mod.create_server()
         with patch.object(server_mod, "_app_ctx", mock_ctx):
@@ -478,7 +482,9 @@ class TestGetCtx:
     @pytest.mark.asyncio
     async def test_creates_app_on_first_call(self) -> None:
         mock_ctx = _make_mock_ctx()
-        with patch("codetex_mcp.server.mcp_server.create_app", return_value=mock_ctx) as mock_create:
+        with patch(
+            "codetex_mcp.server.mcp_server.create_app", return_value=mock_ctx
+        ) as mock_create:
             result = await server_mod._get_ctx()
 
         assert result is mock_ctx
@@ -487,7 +493,9 @@ class TestGetCtx:
     @pytest.mark.asyncio
     async def test_reuses_app_on_second_call(self) -> None:
         mock_ctx = _make_mock_ctx()
-        with patch("codetex_mcp.server.mcp_server.create_app", return_value=mock_ctx) as mock_create:
+        with patch(
+            "codetex_mcp.server.mcp_server.create_app", return_value=mock_ctx
+        ) as mock_create:
             first = await server_mod._get_ctx()
             second = await server_mod._get_ctx()
 

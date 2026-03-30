@@ -13,7 +13,11 @@ def tier1_prompt(
 ) -> str:
     """Build the Tier 1 (repository overview) prompt."""
     tech_list = ", ".join(technologies) if technologies else "unknown"
-    summaries_block = "\n\n".join(file_summaries) if file_summaries else "(no file summaries available)"
+    summaries_block = (
+        "\n\n".join(file_summaries)
+        if file_summaries
+        else "(no file summaries available)"
+    )
 
     return f"""\
 Analyze the following repository and produce a structured overview.
@@ -73,7 +77,9 @@ def tier2_prompt(
                     param_strs.append(part)
                 params = ", ".join(param_strs)
             ret = f" -> {s.return_type}" if s.return_type else ""
-            lines.append(f"- {s.kind} `{s.name}({params}){ret}` (lines {s.start_line}-{s.end_line})")
+            lines.append(
+                f"- {s.kind} `{s.name}({params}){ret}` (lines {s.start_line}-{s.end_line})"
+            )
         symbols_block = "\n".join(lines)
     else:
         symbols_block = "(no symbols extracted)"

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import importlib
-from typing import Any
 
 import tiktoken
 import tree_sitter
@@ -146,9 +145,7 @@ class TreeSitterParser:
                 continue
 
             if child.type in self._symbol_node_types(language):
-                self._process_symbol_node(
-                    child, source, language, symbols, is_method
-                )
+                self._process_symbol_node(child, source, language, symbols, is_method)
             elif child.type in ("block", "program", "source_file", "translation_unit"):
                 # Recurse into blocks to find nested definitions
                 self._walk_for_symbols(child, source, language, symbols, is_method)
@@ -260,9 +257,7 @@ class TreeSitterParser:
             # Recurse into class body to find methods
             body = node.child_by_field_name("body")
             if body:
-                self._walk_for_symbols(
-                    body, source, "python", symbols, is_method=True
-                )
+                self._walk_for_symbols(body, source, "python", symbols, is_method=True)
 
     def _extract_python_params(
         self, func_node: tree_sitter.Node, source: bytes

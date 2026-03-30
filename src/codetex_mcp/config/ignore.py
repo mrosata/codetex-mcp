@@ -19,9 +19,7 @@ class IgnoreFilter:
         self._repo_path = repo_path
         self._max_file_size_bytes = max_file_size_kb * 1024
 
-        self._default_spec = pathspec.PathSpec.from_lines(
-            "gitignore", default_excludes
-        )
+        self._default_spec = pathspec.PathSpec.from_lines("gitignore", default_excludes)
 
         self._gitignore_spec = self._load_spec(repo_path / ".gitignore")
         self._codetexignore_spec = self._load_spec(repo_path / ".codetexignore")
@@ -78,9 +76,8 @@ class IgnoreFilter:
                 return True, "gitignore"
 
         # 3. .codetexignore (positive patterns)
-        if (
-            self._codetexignore_spec is not None
-            and self._codetexignore_spec.match_file(rel)
+        if self._codetexignore_spec is not None and self._codetexignore_spec.match_file(
+            rel
         ):
             # A negation in the same file should not re-exclude, but positive patterns do
             # Check if the file also matches a negation — if so, it's not excluded

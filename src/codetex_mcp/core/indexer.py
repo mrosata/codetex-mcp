@@ -135,15 +135,15 @@ class Indexer:
             # Step 9: Tier 1 overview + update commit
             commit_sha = await self._git.get_head_commit(repo_path)
             llm_calls_t1 = await self._generate_tier1(
-                repo_id, repo_name, commit_sha,
+                repo_id,
+                repo_name,
+                commit_sha,
             )
 
             await update_indexed_commit(self._db, repo_id, commit_sha)
 
             total_symbols = sum(len(w.symbol_ids) for w in work_items)
-            total_tokens = sum(
-                w.analysis.token_count for w in work_items
-            )
+            total_tokens = sum(w.analysis.token_count for w in work_items)
 
             return IndexResult(
                 files_indexed=len(work_items),
@@ -161,7 +161,9 @@ class Indexer:
     # -- Step 1: Discover files -----------------------------------------------
 
     async def _discover_files(
-        self, repo_path: Path, path_filter: str | None,
+        self,
+        repo_path: Path,
+        path_filter: str | None,
     ) -> list[str]:
         tracked = await self._git.list_tracked_files(repo_path)
         ignore = IgnoreFilter(
@@ -207,9 +209,7 @@ class Indexer:
         work_items: list[_FileWork],
         start: float,
     ) -> IndexResult:
-        total_symbols = sum(
-            len(w.analysis.symbols) for w in work_items
-        )
+        total_symbols = sum(len(w.analysis.symbols) for w in work_items)
         summarizable_symbols = sum(
             1
             for w in work_items
@@ -217,9 +217,7 @@ class Indexer:
             if s.kind in ("function", "method", "class")
         )
         estimated_llm_calls = len(work_items) + summarizable_symbols + 1
-        total_tokens = sum(
-            w.analysis.token_count for w in work_items
-        )
+        total_tokens = sum(w.analysis.token_count for w in work_items)
 
         return IndexResult(
             files_indexed=len(work_items),
@@ -233,7 +231,9 @@ class Indexer:
     # -- Step 3: Store structure ----------------------------------------------
 
     async def _store_structure(
-        self, work_items: list[_FileWork], repo_id: int,
+        self,
+        work_items: list[_FileWork],
+        repo_id: int,
     ) -> None:
         for work in work_items:
             analysis = work.analysis
@@ -265,7 +265,9 @@ class Indexer:
             await delete_dependencies_by_file(self._db, file_id)
 
             for sym in symbols:
-                params_json = _params_to_json(sym.parameters) if sym.parameters else None
+                params_json = (
+                    _params_to_json(sym.parameters) if sym.parameters else None
+                )
                 calls_json = json.dumps(sym.calls) if sym.calls else None
 
                 symbol_id = await upsert_symbol(
@@ -350,7 +352,9 @@ class Indexer:
     # -- Step 8: Generate embeddings ------------------------------------------
 
     async def _generate_embeddings(
-        self, work_items: list[_FileWork], repo_id: int,
+        self,
+        work_items: list[_FileWork],
+        repo_id: int,
     ) -> None:
         # Embed file summaries — read updated records from DB
         file_records = await list_files(self._db, repo_id)
@@ -433,28 +437,32 @@ class Indexer:
 
 
 def _imports_to_json(imports: list[ImportInfo]) -> str:
-    return json.dumps([
-        {"module": imp.module, "names": imp.names}
-        for imp in imports
-    ])
+    return json.dumps([{"module": imp.module, "names": imp.names} for imp in imports])
 
 
 def _params_to_json(parameters: list[ParameterInfo]) -> str:
-    return json.dumps([
-        {
-            "name": p.name,
-            "type": p.type_annotation,
-            "default": p.default_value,
-        }
-        for p in parameters
-    ])
+    return json.dumps(
+        [
+            {
+                "name": p.name,
+                "type": p.type_annotation,
+                "default": p.default_value,
+            }
+            for p in parameters
+        ]
+    )
 
 
 def _extract_role(summary: str) -> str:
     """Extract the role classification from a Tier 2 summary."""
     valid_roles = (
-        "entry_point", "core_logic", "utility", "model",
-        "configuration", "test", "documentation",
+        "entry_point",
+        "core_logic",
+        "utility",
+        "model",
+        "configuration",
+        "test",
+        "documentation",
     )
     lower = summary.lower()
     for role in valid_roles:
@@ -485,7 +493,9 @@ def _build_directory_tree(paths: list[str]) -> str:
 
 
 def _render_tree(
-    node: dict[str, object], prefix: str, lines: list[str],
+    node: dict[str, object],
+    prefix: str,
+    lines: list[str],
 ) -> None:
     entries = sorted(node.keys())
     for i, name in enumerate(entries):

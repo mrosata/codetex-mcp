@@ -47,8 +47,18 @@ async def file_id(db: Database, repo_id: int) -> int:  # type: ignore[misc]
 @pytest_asyncio.fixture
 async def symbol_id(db: Database, repo_id: int, file_id: int) -> int:  # type: ignore[misc]
     return await upsert_symbol(
-        db, file_id, repo_id, "my_func", "function",
-        "def my_func(x: int) -> str", None, 10, 20, None, "str", None,
+        db,
+        file_id,
+        repo_id,
+        "my_func",
+        "function",
+        "def my_func(x: int) -> str",
+        None,
+        10,
+        20,
+        None,
+        "str",
+        None,
     )
 
 
@@ -69,9 +79,7 @@ class TestUpsertFileEmbedding:
         assert results[0][0] == file_id
 
     @pytest.mark.asyncio
-    async def test_upsert_replaces_existing(
-        self, db: Database, file_id: int
-    ) -> None:
+    async def test_upsert_replaces_existing(self, db: Database, file_id: int) -> None:
         embedding1 = _make_embedding(0.1)
         embedding2 = _make_embedding(0.5)
         await upsert_file_embedding(db, file_id, embedding1)
@@ -85,9 +93,7 @@ class TestUpsertFileEmbedding:
 
 class TestUpsertSymbolEmbedding:
     @pytest.mark.asyncio
-    async def test_insert_symbol_embedding(
-        self, db: Database, symbol_id: int
-    ) -> None:
+    async def test_insert_symbol_embedding(self, db: Database, symbol_id: int) -> None:
         embedding = _make_embedding(0.2)
         await upsert_symbol_embedding(db, symbol_id, embedding)
 
@@ -96,9 +102,7 @@ class TestUpsertSymbolEmbedding:
         assert results[0][0] == symbol_id
 
     @pytest.mark.asyncio
-    async def test_upsert_replaces_existing(
-        self, db: Database, symbol_id: int
-    ) -> None:
+    async def test_upsert_replaces_existing(self, db: Database, symbol_id: int) -> None:
         embedding1 = _make_embedding(0.2)
         embedding2 = _make_embedding(0.7)
         await upsert_symbol_embedding(db, symbol_id, embedding1)
@@ -111,9 +115,7 @@ class TestUpsertSymbolEmbedding:
 
 class TestDeleteFileEmbedding:
     @pytest.mark.asyncio
-    async def test_delete_removes_embedding(
-        self, db: Database, file_id: int
-    ) -> None:
+    async def test_delete_removes_embedding(self, db: Database, file_id: int) -> None:
         embedding = _make_embedding(0.1)
         await upsert_file_embedding(db, file_id, embedding)
         await delete_file_embedding(db, file_id)
@@ -129,9 +131,7 @@ class TestDeleteFileEmbedding:
 
 class TestDeleteSymbolEmbedding:
     @pytest.mark.asyncio
-    async def test_delete_removes_embedding(
-        self, db: Database, symbol_id: int
-    ) -> None:
+    async def test_delete_removes_embedding(self, db: Database, symbol_id: int) -> None:
         embedding = _make_embedding(0.2)
         await upsert_symbol_embedding(db, symbol_id, embedding)
         await delete_symbol_embedding(db, symbol_id)
@@ -174,9 +174,7 @@ class TestSearchFileEmbeddings:
         assert results[0][1] <= results[1][1] <= results[2][1]
 
     @pytest.mark.asyncio
-    async def test_search_respects_limit(
-        self, db: Database, repo_id: int
-    ) -> None:
+    async def test_search_respects_limit(self, db: Database, repo_id: int) -> None:
         fid1 = await upsert_file(db, repo_id, "a.py", "python", 10, 50, None)
         fid2 = await upsert_file(db, repo_id, "b.py", "python", 20, 100, None)
 
@@ -198,16 +196,46 @@ class TestSearchSymbolEmbeddings:
         self, db: Database, repo_id: int, file_id: int
     ) -> None:
         sid1 = await upsert_symbol(
-            db, file_id, repo_id, "func_a", "function",
-            "def func_a()", None, 1, 5, None, None, None,
+            db,
+            file_id,
+            repo_id,
+            "func_a",
+            "function",
+            "def func_a()",
+            None,
+            1,
+            5,
+            None,
+            None,
+            None,
         )
         sid2 = await upsert_symbol(
-            db, file_id, repo_id, "func_b", "function",
-            "def func_b()", None, 10, 15, None, None, None,
+            db,
+            file_id,
+            repo_id,
+            "func_b",
+            "function",
+            "def func_b()",
+            None,
+            10,
+            15,
+            None,
+            None,
+            None,
         )
         sid3 = await upsert_symbol(
-            db, file_id, repo_id, "func_c", "function",
-            "def func_c()", None, 20, 25, None, None, None,
+            db,
+            file_id,
+            repo_id,
+            "func_c",
+            "function",
+            "def func_c()",
+            None,
+            20,
+            25,
+            None,
+            None,
+            None,
         )
 
         emb1 = _make_embedding(0.1)

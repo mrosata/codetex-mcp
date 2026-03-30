@@ -52,12 +52,7 @@ class TestPythonFunctionExtraction:
 
     def test_multiple_symbols(self) -> None:
         content = (
-            "class Foo:\n"
-            "    def bar(self):\n"
-            "        pass\n"
-            "\n"
-            "def baz():\n"
-            "    pass\n"
+            "class Foo:\n    def bar(self):\n        pass\n\ndef baz():\n    pass\n"
         )
         parser = FallbackParser()
         result = parser.parse(content, "python")
@@ -144,7 +139,7 @@ class TestJavaScriptFunctionExtraction:
 
 class TestGoFunctionExtraction:
     def test_simple_function(self) -> None:
-        content = "func main() {\n    fmt.Println(\"hello\")\n}\n"
+        content = 'func main() {\n    fmt.Println("hello")\n}\n'
         parser = FallbackParser()
         result = parser.parse(content, "go")
         assert len(result.symbols) == 1
@@ -168,7 +163,7 @@ class TestGoFunctionExtraction:
 
 class TestRustFunctionExtraction:
     def test_simple_function(self) -> None:
-        content = "fn main() {\n    println!(\"hello\");\n}\n"
+        content = 'fn main() {\n    println!("hello");\n}\n'
         parser = FallbackParser()
         result = parser.parse(content, "rust")
         assert len(result.symbols) == 1

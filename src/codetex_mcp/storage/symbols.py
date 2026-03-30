@@ -68,17 +68,26 @@ async def upsert_symbol(
         "(file_id, repo_id, name, kind, signature, docstring, start_line, end_line, "
         "parameters_json, return_type, calls_json, updated_at) "
         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))",
-        (file_id, repo_id, name, kind, signature, docstring, start_line, end_line,
-         parameters_json, return_type, calls_json),
+        (
+            file_id,
+            repo_id,
+            name,
+            kind,
+            signature,
+            docstring,
+            start_line,
+            end_line,
+            parameters_json,
+            return_type,
+            calls_json,
+        ),
     )
     await db.conn.commit()
     assert cursor.lastrowid is not None
     return cursor.lastrowid
 
 
-async def update_symbol_summary(
-    db: Database, symbol_id: int, summary: str
-) -> None:
+async def update_symbol_summary(db: Database, symbol_id: int, summary: str) -> None:
     await db.execute(
         "UPDATE symbols SET summary = ?, updated_at = datetime('now') WHERE id = ?",
         (summary, symbol_id),
@@ -86,9 +95,7 @@ async def update_symbol_summary(
     await db.conn.commit()
 
 
-async def get_symbol(
-    db: Database, repo_id: int, name: str
-) -> SymbolRecord | None:
+async def get_symbol(db: Database, repo_id: int, name: str) -> SymbolRecord | None:
     cursor = await db.execute(
         f"SELECT {_SYMBOL_COLUMNS} FROM symbols WHERE repo_id = ? AND name = ?",
         (repo_id, name),
@@ -99,9 +106,7 @@ async def get_symbol(
     return _row_to_symbol(row)
 
 
-async def list_symbols_by_file(
-    db: Database, file_id: int
-) -> list[SymbolRecord]:
+async def list_symbols_by_file(db: Database, file_id: int) -> list[SymbolRecord]:
     cursor = await db.execute(
         f"SELECT {_SYMBOL_COLUMNS} FROM symbols WHERE file_id = ? ORDER BY start_line",
         (file_id,),

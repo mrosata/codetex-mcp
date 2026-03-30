@@ -199,7 +199,9 @@ class TestListRepos:
         assert repos == []
 
     @pytest.mark.asyncio
-    async def test_list_after_adding(self, repo_manager: RepoManager, tmp_path: Path) -> None:
+    async def test_list_after_adding(
+        self, repo_manager: RepoManager, tmp_path: Path
+    ) -> None:
         path_a = tmp_path / "alpha"
         path_a.mkdir()
         path_b = tmp_path / "beta"
@@ -219,7 +221,9 @@ class TestListRepos:
 
 class TestGetRepo:
     @pytest.mark.asyncio
-    async def test_get_existing(self, repo_manager: RepoManager, tmp_path: Path) -> None:
+    async def test_get_existing(
+        self, repo_manager: RepoManager, tmp_path: Path
+    ) -> None:
         local_path = tmp_path / "findable"
         local_path.mkdir()
         await repo_manager.add_local(local_path)
@@ -238,7 +242,9 @@ class TestGetRepo:
 
 class TestRemoveRepo:
     @pytest.mark.asyncio
-    async def test_remove_existing(self, repo_manager: RepoManager, tmp_path: Path) -> None:
+    async def test_remove_existing(
+        self, repo_manager: RepoManager, tmp_path: Path
+    ) -> None:
         local_path = tmp_path / "removable"
         local_path.mkdir()
         await repo_manager.add_local(local_path)

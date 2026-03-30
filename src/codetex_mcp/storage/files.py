@@ -70,9 +70,7 @@ async def update_file_summary(
     await db.conn.commit()
 
 
-async def get_file(
-    db: Database, repo_id: int, path: str
-) -> FileRecord | None:
+async def get_file(db: Database, repo_id: int, path: str) -> FileRecord | None:
     cursor = await db.execute(
         "SELECT id, repo_id, path, language, lines_of_code, token_count, "
         "role, summary, imports_json, updated_at "
@@ -138,7 +136,5 @@ async def upsert_dependency(
 
 
 async def delete_dependencies_by_file(db: Database, file_id: int) -> None:
-    await db.execute(
-        "DELETE FROM dependencies WHERE source_file_id = ?", (file_id,)
-    )
+    await db.execute("DELETE FROM dependencies WHERE source_file_id = ?", (file_id,))
     await db.conn.commit()

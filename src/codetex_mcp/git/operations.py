@@ -26,9 +26,7 @@ class GitOperations:
     def __init__(self, config: Settings) -> None:
         self._config = config
 
-    async def _run(
-        self, *args: str, cwd: Path | None = None
-    ) -> tuple[str, str]:
+    async def _run(self, *args: str, cwd: Path | None = None) -> tuple[str, str]:
         """Run a git command and return (stdout, stderr).
 
         Raises GitError on non-zero exit code.
@@ -100,9 +98,7 @@ class GitOperations:
     async def get_remote_url(self, repo_path: Path) -> str | None:
         """Return the origin remote URL, or None if no remote."""
         try:
-            stdout, _ = await self._run(
-                "remote", "get-url", "origin", cwd=repo_path
-            )
+            stdout, _ = await self._run("remote", "get-url", "origin", cwd=repo_path)
             return stdout if stdout else None
         except GitError:
             return None
@@ -152,9 +148,7 @@ class GitOperations:
     async def is_git_repo(self, path: Path) -> bool:
         """Check if the given path is inside a git repository."""
         try:
-            await self._run(
-                "rev-parse", "--is-inside-work-tree", cwd=path
-            )
+            await self._run("rev-parse", "--is-inside-work-tree", cwd=path)
             return True
         except (GitError, FileNotFoundError):
             return False

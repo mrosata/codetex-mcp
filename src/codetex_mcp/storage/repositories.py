@@ -94,9 +94,7 @@ async def list_repos(db: Database) -> list[Repository]:
     return [_row_to_repo(row) for row in rows]
 
 
-async def update_indexed_commit(
-    db: Database, repo_id: int, commit_sha: str
-) -> None:
+async def update_indexed_commit(db: Database, repo_id: int, commit_sha: str) -> None:
     await db.execute(
         "UPDATE repositories SET indexed_commit = ?, last_indexed_at = datetime('now') "
         "WHERE id = ?",

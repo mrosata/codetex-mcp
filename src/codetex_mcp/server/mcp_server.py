@@ -40,8 +40,7 @@ def create_server() -> FastMCP:
             overview = await ctx.context_store.get_repo_overview(repo.id)
             if overview is None:
                 raise NoIndexError(
-                    f"Repository '{repo_name}' has no index. "
-                    "Run 'codetex index' first."
+                    f"Repository '{repo_name}' has no index. Run 'codetex index' first."
                 )
             return overview
         except CodetexError as exc:
@@ -111,9 +110,7 @@ def create_server() -> FastMCP:
             raise ValueError(str(exc)) from exc
 
     @server.tool()
-    async def search_context(
-        repo_name: str, query: str, max_results: int = 10
-    ) -> str:
+    async def search_context(repo_name: str, query: str, max_results: int = 10) -> str:
         """Search for relevant code context using semantic similarity.
 
         Returns a ranked list of matching files and symbols with
@@ -156,9 +153,7 @@ def create_server() -> FastMCP:
             current_head: str | None = None
             is_stale = False
             try:
-                current_head = await ctx.git.get_head_commit(
-                    Path(repo.local_path)
-                )
+                current_head = await ctx.git.get_head_commit(Path(repo.local_path))
                 if status.indexed_commit:
                     is_stale = current_head != status.indexed_commit
             except Exception:
@@ -170,17 +165,13 @@ def create_server() -> FastMCP:
             )
             parts.append(f"- **Current HEAD:** {current_head or 'Unknown'}")
             stale_str = (
-                "Yes"
-                if is_stale
-                else ("No" if status.indexed_commit else "N/A")
+                "Yes" if is_stale else ("No" if status.indexed_commit else "N/A")
             )
             parts.append(f"- **Stale:** {stale_str}")
             parts.append(f"- **Files indexed:** {status.files_indexed}")
             parts.append(f"- **Symbols indexed:** {status.symbols_indexed}")
             parts.append(f"- **Total tokens:** {status.total_tokens:,}")
-            parts.append(
-                f"- **Last indexed:** {status.last_indexed_at or 'Never'}"
-            )
+            parts.append(f"- **Last indexed:** {status.last_indexed_at or 'Never'}")
             return "\n".join(parts)
         except CodetexError as exc:
             raise ValueError(str(exc)) from exc
@@ -198,8 +189,7 @@ def create_server() -> FastMCP:
 
             if repo.indexed_commit is None:
                 raise NoIndexError(
-                    f"Repository '{repo_name}' has no index. "
-                    "Run 'codetex index' first."
+                    f"Repository '{repo_name}' has no index. Run 'codetex index' first."
                 )
 
             result = await ctx.syncer.sync(repo)
@@ -236,16 +226,10 @@ def create_server() -> FastMCP:
                 return "No repositories registered."
 
             parts: list[str] = ["# Registered Repositories", ""]
-            parts.append(
-                "| Name | Remote URL | Indexed Commit | Last Indexed |"
-            )
-            parts.append(
-                "|------|-----------|---------------|-------------|"
-            )
+            parts.append("| Name | Remote URL | Indexed Commit | Last Indexed |")
+            parts.append("|------|-----------|---------------|-------------|")
             for repo in repos:
-                commit = (
-                    repo.indexed_commit[:12] if repo.indexed_commit else "-"
-                )
+                commit = repo.indexed_commit[:12] if repo.indexed_commit else "-"
                 parts.append(
                     f"| {repo.name} "
                     f"| {repo.remote_url or '-'} "

@@ -139,9 +139,7 @@ class TestMigrate:
     async def test_schema_version_recorded(self, db: Database) -> None:
         await db.migrate()
 
-        cursor = await db.execute(
-            "SELECT version FROM schema_version ORDER BY version"
-        )
+        cursor = await db.execute("SELECT version FROM schema_version ORDER BY version")
         rows = await cursor.fetchall()
         versions = [r[0] for r in rows]
         assert versions == [1]
@@ -173,8 +171,14 @@ class TestMigrate:
         rows = await cursor.fetchall()
         col_names = {r[1] for r in rows}
         assert col_names == {
-            "id", "name", "remote_url", "local_path", "default_branch",
-            "indexed_commit", "last_indexed_at", "created_at",
+            "id",
+            "name",
+            "remote_url",
+            "local_path",
+            "default_branch",
+            "indexed_commit",
+            "last_indexed_at",
+            "created_at",
         }
 
         # Check files table columns
@@ -182,8 +186,16 @@ class TestMigrate:
         rows = await cursor.fetchall()
         col_names = {r[1] for r in rows}
         assert col_names == {
-            "id", "repo_id", "path", "language", "lines_of_code",
-            "token_count", "role", "summary", "imports_json", "updated_at",
+            "id",
+            "repo_id",
+            "path",
+            "language",
+            "lines_of_code",
+            "token_count",
+            "role",
+            "summary",
+            "imports_json",
+            "updated_at",
         }
 
         # Check symbols table columns
@@ -191,9 +203,20 @@ class TestMigrate:
         rows = await cursor.fetchall()
         col_names = {r[1] for r in rows}
         assert col_names == {
-            "id", "file_id", "repo_id", "name", "kind", "signature",
-            "docstring", "summary", "start_line", "end_line",
-            "parameters_json", "return_type", "calls_json", "updated_at",
+            "id",
+            "file_id",
+            "repo_id",
+            "name",
+            "kind",
+            "signature",
+            "docstring",
+            "summary",
+            "start_line",
+            "end_line",
+            "parameters_json",
+            "return_type",
+            "calls_json",
+            "updated_at",
         }
 
         # Check dependencies table columns
@@ -201,7 +224,11 @@ class TestMigrate:
         rows = await cursor.fetchall()
         col_names = {r[1] for r in rows}
         assert col_names == {
-            "id", "repo_id", "source_file_id", "target_path", "imported_names",
+            "id",
+            "repo_id",
+            "source_file_id",
+            "target_path",
+            "imported_names",
         }
 
         # Check repo_overviews table columns
@@ -209,8 +236,13 @@ class TestMigrate:
         rows = await cursor.fetchall()
         col_names = {r[1] for r in rows}
         assert col_names == {
-            "id", "repo_id", "overview", "directory_tree",
-            "technologies", "commit_sha", "created_at",
+            "id",
+            "repo_id",
+            "overview",
+            "directory_tree",
+            "technologies",
+            "commit_sha",
+            "created_at",
         }
 
     @pytest.mark.asyncio

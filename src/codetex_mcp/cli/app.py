@@ -42,7 +42,9 @@ async def _get_app() -> AppContext:
 
 
 @app.command()
-def add(target: str = typer.Argument(help="Remote URL or local path to a git repo")) -> None:
+def add(
+    target: str = typer.Argument(help="Remote URL or local path to a git repo"),
+) -> None:
     """Clone a remote repo or register a local path."""
 
     async def _add() -> None:
@@ -147,8 +149,12 @@ def status(repo_name: str = typer.Argument(help="Name of the repository")) -> No
 @app.command()
 def index(
     repo_name: str = typer.Argument(help="Name of the repository"),
-    path: str | None = typer.Option(None, "--path", "-p", help="Restrict to files under this path prefix"),
-    dry_run: bool = typer.Option(False, "--dry-run", help="Show estimated work without making API calls"),
+    path: str | None = typer.Option(
+        None, "--path", "-p", help="Restrict to files under this path prefix"
+    ),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Show estimated work without making API calls"
+    ),
 ) -> None:
     """Build a full index for a repository."""
 
@@ -178,9 +184,16 @@ def index(
                 task_id = progress.add_task("Indexing...", total=None)
 
                 def on_progress(current: int, total: int, file_path: str) -> None:
-                    progress.update(task_id, total=total, completed=current, description=f"Indexing {file_path}")
+                    progress.update(
+                        task_id,
+                        total=total,
+                        completed=current,
+                        description=f"Indexing {file_path}",
+                    )
 
-                result = await ctx.indexer.index(repo, path_filter=path, on_progress=on_progress)
+                result = await ctx.indexer.index(
+                    repo, path_filter=path, on_progress=on_progress
+                )
 
             table = Table(title="Index Complete")
             table.add_column("Metric", style="bold")
@@ -204,8 +217,12 @@ def index(
 @app.command()
 def sync(
     repo_name: str = typer.Argument(help="Name of the repository"),
-    path: str | None = typer.Option(None, "--path", "-p", help="Restrict to files under this path prefix"),
-    dry_run: bool = typer.Option(False, "--dry-run", help="Show what would change without making API calls"),
+    path: str | None = typer.Option(
+        None, "--path", "-p", help="Restrict to files under this path prefix"
+    ),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Show what would change without making API calls"
+    ),
 ) -> None:
     """Incremental sync — update index for new commits."""
 
@@ -229,8 +246,12 @@ def sync(
             table.add_row("LLM calls", str(result.llm_calls_made))
             table.add_row("Tokens used", f"{result.tokens_used:,}")
             table.add_row("Tier 1 rebuilt", "Yes" if result.tier1_rebuilt else "No")
-            table.add_row("Old commit", result.old_commit[:12] if result.old_commit else "-")
-            table.add_row("New commit", result.new_commit[:12] if result.new_commit else "-")
+            table.add_row(
+                "Old commit", result.old_commit[:12] if result.old_commit else "-"
+            )
+            table.add_row(
+                "New commit", result.new_commit[:12] if result.new_commit else "-"
+            )
             if not dry_run:
                 table.add_row("Duration", f"{result.duration_seconds:.1f}s")
             console.print(table)
@@ -246,9 +267,15 @@ def sync(
 @app.command()
 def context(
     repo_name: str = typer.Argument(help="Name of the repository"),
-    file: str | None = typer.Option(None, "--file", "-f", help="File path for Tier 2 summary"),
-    symbol: str | None = typer.Option(None, "--symbol", "-s", help="Symbol name for Tier 3 detail"),
-    query: str | None = typer.Option(None, "--query", "-q", help="Semantic search query"),
+    file: str | None = typer.Option(
+        None, "--file", "-f", help="File path for Tier 2 summary"
+    ),
+    symbol: str | None = typer.Option(
+        None, "--symbol", "-s", help="Symbol name for Tier 3 detail"
+    ),
+    query: str | None = typer.Option(
+        None, "--query", "-q", help="Semantic search query"
+    ),
 ) -> None:
     """Query indexed context — overview, file, symbol, or search."""
 
@@ -293,7 +320,9 @@ def context(
                 if fc.symbols:
                     md_parts.append("\n## Symbols")
                     for s in fc.symbols:
-                        md_parts.append(f"- `{s.signature}` ({s.kind}, L{s.start_line}-{s.end_line})")
+                        md_parts.append(
+                            f"- `{s.signature}` ({s.kind}, L{s.start_line}-{s.end_line})"
+                        )
                 console.print(Markdown("\n".join(md_parts)))
             elif symbol is not None:
                 sd = await ctx.context_store.get_symbol_detail(repo.id, symbol)
@@ -386,7 +415,9 @@ def config_set(
     """Set a configuration value in ~/.codetex/config.toml."""
     if key not in _CONFIG_KEY_MAP:
         valid_keys = ", ".join(sorted(_CONFIG_KEY_MAP.keys()))
-        err_console.print(f"Error: Unknown config key '{key}'. Valid keys: {valid_keys}")
+        err_console.print(
+            f"Error: Unknown config key '{key}'. Valid keys: {valid_keys}"
+        )
         raise typer.Exit(code=1)
 
     section, field_name = _CONFIG_KEY_MAP[key]

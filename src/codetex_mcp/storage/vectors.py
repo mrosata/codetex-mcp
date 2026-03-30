@@ -15,9 +15,7 @@ async def upsert_file_embedding(
 ) -> None:
     """Insert or replace a file embedding in the vec_file_embeddings table."""
     # vec0 virtual tables don't support ON CONFLICT, so delete first then insert.
-    await db.execute(
-        "DELETE FROM vec_file_embeddings WHERE file_id = ?", (file_id,)
-    )
+    await db.execute("DELETE FROM vec_file_embeddings WHERE file_id = ?", (file_id,))
     await db.execute(
         "INSERT INTO vec_file_embeddings(file_id, embedding) VALUES (?, ?)",
         (file_id, _serialize_f32(embedding)),
@@ -42,9 +40,7 @@ async def upsert_symbol_embedding(
 
 async def delete_file_embedding(db: Database, file_id: int) -> None:
     """Delete a file embedding by file_id."""
-    await db.execute(
-        "DELETE FROM vec_file_embeddings WHERE file_id = ?", (file_id,)
-    )
+    await db.execute("DELETE FROM vec_file_embeddings WHERE file_id = ?", (file_id,))
     await db.conn.commit()
 
 

@@ -187,9 +187,7 @@ class TestEmbedBatch:
         ):
             embedder.embed_batch(["test"])
 
-        mock_model.encode.assert_called_once_with(
-            ["test"], normalize_embeddings=True
-        )
+        mock_model.encode.assert_called_once_with(["test"], normalize_embeddings=True)
 
 
 class TestNormalization:

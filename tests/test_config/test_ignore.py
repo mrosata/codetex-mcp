@@ -31,7 +31,9 @@ class TestDefaultExcludes:
     def test_normal_file_not_excluded(self, tmp_path: Path) -> None:
         (tmp_path / "src").mkdir()
         (tmp_path / "src" / "main.py").write_text("print('hi')")
-        filt = IgnoreFilter(tmp_path, ["node_modules/", "*.min.js"], max_file_size_kb=512)
+        filt = IgnoreFilter(
+            tmp_path, ["node_modules/", "*.min.js"], max_file_size_kb=512
+        )
         excluded, reason = filt.is_excluded(Path("src/main.py"))
         assert excluded is False
         assert reason is None

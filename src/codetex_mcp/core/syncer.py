@@ -141,7 +141,10 @@ class Syncer:
 
             if dry_run:
                 return self._build_dry_run_result(
-                    diff, old_commit, new_commit, start,
+                    diff,
+                    old_commit,
+                    new_commit,
+                    start,
                 )
 
             # Step 3: Delete removed files
@@ -172,16 +175,16 @@ class Syncer:
             tier1_rebuilt = False
             if changed_ratio >= self._config.tier1_rebuild_threshold:
                 llm_calls_t1 = await self._generate_tier1(
-                    repo_id, repo_name, new_commit,
+                    repo_id,
+                    repo_name,
+                    new_commit,
                 )
                 tier1_rebuilt = True
 
             # Step 7: Update commit
             await update_indexed_commit(self._db, repo_id, new_commit)
 
-            total_tokens = sum(
-                w.analysis.token_count for w in work_items
-            )
+            total_tokens = sum(w.analysis.token_count for w in work_items)
 
             return SyncResult(
                 already_current=False,
@@ -218,8 +221,7 @@ class Syncer:
         modified = ignore.filter_files(diff.modified)
         deleted = ignore.filter_files(diff.deleted)
         renamed = [
-            (old, new) for old, new in diff.renamed
-            if new in ignore.filter_files([new])
+            (old, new) for old, new in diff.renamed if new in ignore.filter_files([new])
         ]
 
         if path_filter is not None:
@@ -227,8 +229,7 @@ class Syncer:
             modified = [f for f in modified if f.startswith(path_filter)]
             deleted = [f for f in deleted if f.startswith(path_filter)]
             renamed = [
-                (old, new) for old, new in renamed
-                if new.startswith(path_filter)
+                (old, new) for old, new in renamed if new.startswith(path_filter)
             ]
 
         return DiffResult(
@@ -241,7 +242,9 @@ class Syncer:
     # -- Step 3: Delete removed files ------------------------------------------
 
     async def _delete_removed(
-        self, deleted_paths: list[str], repo_id: int,
+        self,
+        deleted_paths: list[str],
+        repo_id: int,
     ) -> None:
         for path in deleted_paths:
             file_rec = await get_file(self._db, repo_id, path)
@@ -262,7 +265,9 @@ class Syncer:
     # -- Step 4: Parse changed files -------------------------------------------
 
     def _parse_files(
-        self, file_paths: list[str], repo_path: Path,
+        self,
+        file_paths: list[str],
+        repo_path: Path,
     ) -> list[_FileWork]:
         work_items: list[_FileWork] = []
         for rel_path in file_paths:
@@ -280,7 +285,9 @@ class Syncer:
     # -- Store structure -------------------------------------------------------
 
     async def _store_structure(
-        self, work_items: list[_FileWork], repo_id: int,
+        self,
+        work_items: list[_FileWork],
+        repo_id: int,
     ) -> None:
         for work in work_items:
             analysis = work.analysis
@@ -312,7 +319,9 @@ class Syncer:
             await delete_dependencies_by_file(self._db, file_id)
 
             for sym in symbols:
-                params_json = _params_to_json(sym.parameters) if sym.parameters else None
+                params_json = (
+                    _params_to_json(sym.parameters) if sym.parameters else None
+                )
                 calls_json = json.dumps(sym.calls) if sym.calls else None
 
                 symbol_id = await upsert_symbol(
@@ -397,7 +406,9 @@ class Syncer:
     # -- Step 5: Update embeddings ---------------------------------------------
 
     async def _update_embeddings(
-        self, work_items: list[_FileWork], repo_id: int,
+        self,
+        work_items: list[_FileWork],
+        repo_id: int,
     ) -> None:
         for work in work_items:
             file_rec = await get_file(self._db, repo_id, work.path)

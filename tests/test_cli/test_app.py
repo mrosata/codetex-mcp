@@ -6,7 +6,6 @@ import tomllib
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
 from typer.testing import CliRunner
 
 from codetex_mcp.cli.app import app
@@ -99,9 +98,7 @@ class TestAddCommand:
         mock_ctx.repo_manager.add_remote.return_value = _make_repo()
 
         with patch("codetex_mcp.cli.app._get_app", return_value=mock_ctx):
-            result = runner.invoke(
-                app, ["add", "https://github.com/user/my-repo.git"]
-            )
+            result = runner.invoke(app, ["add", "https://github.com/user/my-repo.git"])
 
         assert result.exit_code == 0
         assert "my-repo" in result.output
@@ -322,7 +319,9 @@ class TestConfigSetCommand:
         )
 
         with patch("codetex_mcp.cli.app.Settings.load", return_value=settings):
-            result = runner.invoke(app, ["config", "set", "llm.model", "claude-opus-4-6"])
+            result = runner.invoke(
+                app, ["config", "set", "llm.model", "claude-opus-4-6"]
+            )
 
         assert result.exit_code == 0
         assert "llm.model" in result.output
@@ -410,9 +409,7 @@ class TestConfigSetCommand:
         )
 
         with patch("codetex_mcp.cli.app.Settings.load", return_value=settings):
-            result = runner.invoke(
-                app, ["config", "set", "llm.model", "new-model"]
-            )
+            result = runner.invoke(app, ["config", "set", "llm.model", "new-model"])
 
         assert result.exit_code == 0
         with open(config_path, "rb") as f:
@@ -788,9 +785,7 @@ class TestContextCommand:
         )
 
         with patch("codetex_mcp.cli.app._get_app", return_value=mock_ctx):
-            result = runner.invoke(
-                app, ["context", "my-repo", "--symbol", "connect"]
-            )
+            result = runner.invoke(app, ["context", "my-repo", "--symbol", "connect"])
 
         assert result.exit_code == 0
         assert "connect" in result.output
@@ -885,7 +880,7 @@ class TestServeCommand:
         with patch(
             "codetex_mcp.server.mcp_server.create_server", return_value=mock_server
         ) as mock_create:
-            result = runner.invoke(app, ["serve"])
+            runner.invoke(app, ["serve"])
 
         mock_create.assert_called_once()
         mock_server.run.assert_called_once()

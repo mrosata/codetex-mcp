@@ -80,8 +80,12 @@ class TestUpsertFile:
 
 class TestUpdateFileSummary:
     @pytest.mark.asyncio
-    async def test_update_sets_summary_and_role(self, db: Database, repo_id: int) -> None:
-        file_id = await upsert_file(db, repo_id, "src/model.py", "python", 30, 150, None)
+    async def test_update_sets_summary_and_role(
+        self, db: Database, repo_id: int
+    ) -> None:
+        file_id = await upsert_file(
+            db, repo_id, "src/model.py", "python", 30, 150, None
+        )
         await update_file_summary(db, file_id, "Defines the User model", "model")
         record = await get_file(db, repo_id, "src/model.py")
         assert record is not None
@@ -98,7 +102,9 @@ class TestGetFile:
         assert record.path == "README.md"
 
     @pytest.mark.asyncio
-    async def test_get_nonexistent_returns_none(self, db: Database, repo_id: int) -> None:
+    async def test_get_nonexistent_returns_none(
+        self, db: Database, repo_id: int
+    ) -> None:
         result = await get_file(db, repo_id, "no/such/file.py")
         assert result is None
 
@@ -110,7 +116,9 @@ class TestListFiles:
         assert files == []
 
     @pytest.mark.asyncio
-    async def test_list_multiple_ordered_by_path(self, db: Database, repo_id: int) -> None:
+    async def test_list_multiple_ordered_by_path(
+        self, db: Database, repo_id: int
+    ) -> None:
         await upsert_file(db, repo_id, "src/z.py", "python", 10, 50, None)
         await upsert_file(db, repo_id, "src/a.py", "python", 20, 100, None)
         files = await list_files(db, repo_id)
@@ -128,7 +136,9 @@ class TestDeleteFile:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_delete_nonexistent_does_not_raise(self, db: Database, repo_id: int) -> None:
+    async def test_delete_nonexistent_does_not_raise(
+        self, db: Database, repo_id: int
+    ) -> None:
         await delete_file(db, 9999)
 
 
@@ -176,7 +186,9 @@ class TestDependencies:
         assert row[1] == '["helper"]'
 
     @pytest.mark.asyncio
-    async def test_upsert_dependency_updates_on_conflict(self, db: Database, repo_id: int) -> None:
+    async def test_upsert_dependency_updates_on_conflict(
+        self, db: Database, repo_id: int
+    ) -> None:
         file_id = await upsert_file(db, repo_id, "src/app.py", "python", 10, 50, None)
         await upsert_dependency(db, repo_id, file_id, "src/utils.py", '["a"]')
         await upsert_dependency(db, repo_id, file_id, "src/utils.py", '["a", "b"]')
@@ -189,7 +201,9 @@ class TestDependencies:
         assert row[0] == '["a", "b"]'
 
     @pytest.mark.asyncio
-    async def test_delete_dependencies_by_file(self, db: Database, repo_id: int) -> None:
+    async def test_delete_dependencies_by_file(
+        self, db: Database, repo_id: int
+    ) -> None:
         file_id = await upsert_file(db, repo_id, "src/app.py", "python", 10, 50, None)
         await upsert_dependency(db, repo_id, file_id, "src/utils.py", None)
         await upsert_dependency(db, repo_id, file_id, "src/models.py", None)
@@ -205,7 +219,9 @@ class TestDependencies:
 
 class TestCascadeDelete:
     @pytest.mark.asyncio
-    async def test_file_delete_cascades_dependencies(self, db: Database, repo_id: int) -> None:
+    async def test_file_delete_cascades_dependencies(
+        self, db: Database, repo_id: int
+    ) -> None:
         file_id = await upsert_file(db, repo_id, "src/app.py", "python", 10, 50, None)
         await upsert_dependency(db, repo_id, file_id, "src/utils.py", None)
         await delete_file(db, file_id)

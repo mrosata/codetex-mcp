@@ -41,9 +41,7 @@ class SearchEngine:
         query_embedding = self._embedder.embed(query)
 
         # Search both embedding tables
-        file_hits = await search_file_embeddings(
-            self._db, query_embedding, max_results
-        )
+        file_hits = await search_file_embeddings(self._db, query_embedding, max_results)
         symbol_hits = await search_symbol_embeddings(
             self._db, query_embedding, max_results
         )

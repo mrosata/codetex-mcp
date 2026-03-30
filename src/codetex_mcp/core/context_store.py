@@ -118,8 +118,7 @@ class ContextStore:
         """Return index status for a repository."""
         # Get repo metadata
         cursor = await self._db.execute(
-            "SELECT indexed_commit, last_indexed_at "
-            "FROM repositories WHERE id = ?",
+            "SELECT indexed_commit, last_indexed_at FROM repositories WHERE id = ?",
             (repo_id,),
         )
         row = await cursor.fetchone()

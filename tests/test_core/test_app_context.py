@@ -3,7 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-import pytest_asyncio
 
 from codetex_mcp.analysis.parser import Parser
 from codetex_mcp.config.settings import Settings
@@ -86,9 +85,7 @@ class TestCreateApp:
         ctx = await create_app(settings)
         try:
             # Verify tables exist by querying schema_version
-            result = await ctx.db.execute(
-                "SELECT MAX(version) FROM schema_version"
-            )
+            result = await ctx.db.execute("SELECT MAX(version) FROM schema_version")
             row = await result.fetchone()
             assert row is not None
             assert row[0] >= 1
@@ -106,7 +103,9 @@ class TestCreateApp:
             await ctx.db.close()
 
     @pytest.mark.asyncio
-    async def test_default_settings_when_none(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    async def test_default_settings_when_none(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """create_app loads default Settings when None is passed."""
         # Point data dir to tmp_path to avoid polluting user home
         monkeypatch.setenv("CODETEX_DATA_DIR", str(tmp_path / "default_data"))
@@ -122,7 +121,13 @@ class TestCreateApp:
         ctx = await create_app(settings)
         try:
             # Check that key tables exist
-            for table in ("repositories", "files", "symbols", "dependencies", "repo_overviews"):
+            for table in (
+                "repositories",
+                "files",
+                "symbols",
+                "dependencies",
+                "repo_overviews",
+            ):
                 result = await ctx.db.execute(
                     "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
                     (table,),
