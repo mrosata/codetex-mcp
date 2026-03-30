@@ -44,7 +44,7 @@ async def upsert_file(
     token_count: int,
     imports_json: str | None,
 ) -> int:
-    cursor = await db.execute(
+    await db.execute(
         "INSERT INTO files (repo_id, path, language, lines_of_code, token_count, imports_json, updated_at) "
         "VALUES (?, ?, ?, ?, ?, ?, datetime('now')) "
         "ON CONFLICT(repo_id, path) DO UPDATE SET "
@@ -56,8 +56,15 @@ async def upsert_file(
         (repo_id, path, language, lines_of_code, token_count, imports_json),
     )
     await db.conn.commit()
-    assert cursor.lastrowid is not None
-    return cursor.lastrowid
+    # lastrowid is unreliable with UPSERT DO UPDATE — always query back.
+    # See: https://sqlite.org/c3ref/last_insert_rowid.html
+    cursor = await db.execute(
+        "SELECT id FROM files WHERE repo_id = ? AND path = ?",
+        (repo_id, path),
+    )
+    row = await cursor.fetchone()
+    assert row is not None
+    return int(row[0])
 
 
 async def update_file_summary(

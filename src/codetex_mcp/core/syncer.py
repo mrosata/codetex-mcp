@@ -306,12 +306,6 @@ class Syncer:
                 imports_json=imports_json,
             )
 
-            # ON CONFLICT UPDATE may not set lastrowid correctly — query back
-            if file_id == 0:
-                rec = await get_file(self._db, repo_id, work.path)
-                assert rec is not None
-                file_id = rec.id
-
             work.file_id = file_id
 
             # Clear old symbols and dependencies before re-inserting

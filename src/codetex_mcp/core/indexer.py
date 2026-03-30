@@ -28,7 +28,6 @@ from codetex_mcp.llm.provider import LLMProvider
 from codetex_mcp.storage.database import Database
 from codetex_mcp.storage.files import (
     delete_dependencies_by_file,
-    get_file,
     list_files,
     upsert_dependency,
     upsert_file,
@@ -253,12 +252,6 @@ class Indexer:
                 token_count=analysis.token_count,
                 imports_json=imports_json,
             )
-
-            # ON CONFLICT UPDATE may not set lastrowid correctly — query back
-            if file_id == 0:
-                rec = await get_file(self._db, repo_id, work.path)
-                assert rec is not None
-                file_id = rec.id
 
             work.file_id = file_id
 
