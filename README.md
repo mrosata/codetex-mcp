@@ -30,21 +30,6 @@ pip install codetex-mcp
 uv tool install codetex-mcp
 ```
 
-### Tree-sitter grammars (optional)
-
-codetex uses tree-sitter for accurate AST parsing. Without grammars installed, it falls back to regex-based extraction that works for any language but is less precise.
-
-Install grammars for the languages you work with:
-
-```bash
-# Individual languages
-pip install "codetex-mcp[tree-sitter-python]"
-pip install "codetex-mcp[tree-sitter-typescript]"
-
-# All 8 supported languages (Python, JS, TS, Go, Rust, Java, Ruby, C/C++)
-pip install "codetex-mcp[all-grammars]"
-```
-
 ## Quick Start
 
 ### 1. Set your Anthropic API key
@@ -296,7 +281,7 @@ Files are filtered through multiple stages:
 | C/C++ | Yes | Yes |
 | All others | — | Yes |
 
-Tree-sitter grammars are optional. The fallback parser uses regex patterns to extract functions, classes, and imports from any language.
+Tree-sitter grammars for all 8 languages are installed automatically. For other languages, the fallback parser uses regex patterns to extract functions, classes, and imports.
 
 ## Architecture
 

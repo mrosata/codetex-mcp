@@ -90,7 +90,7 @@ MCP (FastMCP)─┘        │           │            │
 ## Conventions
 
 - All core services are async
-- Tree-sitter grammars are optional extras (installed per-language)
+- Tree-sitter grammars for all 8 supported languages are included as default dependencies
 - Config lives at `~/.codetex/config.toml` at runtime; SQLite database at `~/.codetex/codetex.db`
 - MCP tool responses are structured markdown strings optimized for LLM consumption
 - CLI output uses `rich` for progress bars, tables, and markdown rendering

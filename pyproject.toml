@@ -41,6 +41,16 @@ dependencies = [
 
     # AST parsing
     "tree-sitter>=0.23",
+
+    # Tree-sitter grammars
+    "tree-sitter-python>=0.23",
+    "tree-sitter-javascript>=0.23",
+    "tree-sitter-typescript>=0.23",
+    "tree-sitter-go>=0.23",
+    "tree-sitter-rust>=0.23",
+    "tree-sitter-java>=0.23",
+    "tree-sitter-ruby>=0.23",
+    "tree-sitter-cpp>=0.23",
 ]
 
 [project.urls]
@@ -50,29 +60,6 @@ Issues = "https://github.com/mrosata/codetex-mcp/issues"
 
 [project.scripts]
 codetex = "codetex_mcp.cli.app:main"
-
-[project.optional-dependencies]
-# Tree-sitter grammars — install per-language as needed
-tree-sitter-python = ["tree-sitter-python>=0.23"]
-tree-sitter-javascript = ["tree-sitter-javascript>=0.23"]
-tree-sitter-typescript = ["tree-sitter-typescript>=0.23"]
-tree-sitter-go = ["tree-sitter-go>=0.23"]
-tree-sitter-rust = ["tree-sitter-rust>=0.23"]
-tree-sitter-java = ["tree-sitter-java>=0.23"]
-tree-sitter-ruby = ["tree-sitter-ruby>=0.23"]
-tree-sitter-cpp = ["tree-sitter-cpp>=0.23"]
-
-# All supported grammars
-all-grammars = [
-    "codetex-mcp[tree-sitter-python]",
-    "codetex-mcp[tree-sitter-javascript]",
-    "codetex-mcp[tree-sitter-typescript]",
-    "codetex-mcp[tree-sitter-go]",
-    "codetex-mcp[tree-sitter-rust]",
-    "codetex-mcp[tree-sitter-java]",
-    "codetex-mcp[tree-sitter-ruby]",
-    "codetex-mcp[tree-sitter-cpp]",
-]
 
 [dependency-groups]
 dev = [

@@ -223,7 +223,7 @@ wheels = [
 
 [[package]]
 name = "codetex-mcp"
-version = "0.1.0"
+version = "0.1.2"
 source = { editable = "." }
 dependencies = [
     { name = "aiosqlite" },
@@ -235,43 +235,15 @@ dependencies = [
     { name = "sqlite-vec" },
     { name = "tiktoken" },
     { name = "tree-sitter" },
+    { name = "tree-sitter-cpp" },
+    { name = "tree-sitter-go" },
+    { name = "tree-sitter-java" },
+    { name = "tree-sitter-javascript" },
+    { name = "tree-sitter-python" },
+    { name = "tree-sitter-ruby" },
+    { name = "tree-sitter-rust" },
+    { name = "tree-sitter-typescript" },
     { name = "typer" },
-]
-
-[package.optional-dependencies]
-all-grammars = [
-    { name = "tree-sitter-cpp" },
-    { name = "tree-sitter-go" },
-    { name = "tree-sitter-java" },
-    { name = "tree-sitter-javascript" },
-    { name = "tree-sitter-python" },
-    { name = "tree-sitter-ruby" },
-    { name = "tree-sitter-rust" },
-    { name = "tree-sitter-typescript" },
-]
-tree-sitter-cpp = [
-    { name = "tree-sitter-cpp" },
-]
-tree-sitter-go = [
-    { name = "tree-sitter-go" },
-]
-tree-sitter-java = [
-    { name = "tree-sitter-java" },
-]
-tree-sitter-javascript = [
-    { name = "tree-sitter-javascript" },
-]
-tree-sitter-python = [
-    { name = "tree-sitter-python" },
-]
-tree-sitter-ruby = [
-    { name = "tree-sitter-ruby" },
-]
-tree-sitter-rust = [
-    { name = "tree-sitter-rust" },
-]
-tree-sitter-typescript = [
-    { name = "tree-sitter-typescript" },
 ]
 
 [package.dev-dependencies]
@@ -287,14 +259,6 @@ dev = [
 requires-dist = [
     { name = "aiosqlite", specifier = ">=0.20" },
     { name = "anthropic", specifier = ">=0.40" },
-    { name = "codetex-mcp", extras = ["tree-sitter-cpp"], marker = "extra == 'all-grammars'" },
-    { name = "codetex-mcp", extras = ["tree-sitter-go"], marker = "extra == 'all-grammars'" },
-    { name = "codetex-mcp", extras = ["tree-sitter-java"], marker = "extra == 'all-grammars'" },
-    { name = "codetex-mcp", extras = ["tree-sitter-javascript"], marker = "extra == 'all-grammars'" },
-    { name = "codetex-mcp", extras = ["tree-sitter-python"], marker = "extra == 'all-grammars'" },
-    { name = "codetex-mcp", extras = ["tree-sitter-ruby"], marker = "extra == 'all-grammars'" },
-    { name = "codetex-mcp", extras = ["tree-sitter-rust"], marker = "extra == 'all-grammars'" },
-    { name = "codetex-mcp", extras = ["tree-sitter-typescript"], marker = "extra == 'all-grammars'" },
     { name = "mcp", specifier = ">=1.0" },
     { name = "pathspec", specifier = ">=0.12" },
     { name = "rich", specifier = ">=13.0" },
@@ -302,17 +266,16 @@ requires-dist = [
     { name = "sqlite-vec", specifier = ">=0.1" },
     { name = "tiktoken", specifier = ">=0.7" },
     { name = "tree-sitter", specifier = ">=0.23" },
-    { name = "tree-sitter-cpp", marker = "extra == 'tree-sitter-cpp'", specifier = ">=0.23" },
-    { name = "tree-sitter-go", marker = "extra == 'tree-sitter-go'", specifier = ">=0.23" },
-    { name = "tree-sitter-java", marker = "extra == 'tree-sitter-java'", specifier = ">=0.23" },
-    { name = "tree-sitter-javascript", marker = "extra == 'tree-sitter-javascript'", specifier = ">=0.23" },
-    { name = "tree-sitter-python", marker = "extra == 'tree-sitter-python'", specifier = ">=0.23" },
-    { name = "tree-sitter-ruby", marker = "extra == 'tree-sitter-ruby'", specifier = ">=0.23" },
-    { name = "tree-sitter-rust", marker = "extra == 'tree-sitter-rust'", specifier = ">=0.23" },
-    { name = "tree-sitter-typescript", marker = "extra == 'tree-sitter-typescript'", specifier = ">=0.23" },
+    { name = "tree-sitter-cpp", specifier = ">=0.23" },
+    { name = "tree-sitter-go", specifier = ">=0.23" },
+    { name = "tree-sitter-java", specifier = ">=0.23" },
+    { name = "tree-sitter-javascript", specifier = ">=0.23" },
+    { name = "tree-sitter-python", specifier = ">=0.23" },
+    { name = "tree-sitter-ruby", specifier = ">=0.23" },
+    { name = "tree-sitter-rust", specifier = ">=0.23" },
+    { name = "tree-sitter-typescript", specifier = ">=0.23" },
     { name = "typer", specifier = ">=0.9" },
 ]
-provides-extras = ["tree-sitter-python", "tree-sitter-javascript", "tree-sitter-typescript", "tree-sitter-go", "tree-sitter-rust", "tree-sitter-java", "tree-sitter-ruby", "tree-sitter-cpp", "all-grammars"]
 
 [package.metadata.requires-dev]
 dev = [
