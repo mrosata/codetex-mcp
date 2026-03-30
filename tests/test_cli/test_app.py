@@ -622,6 +622,226 @@ class TestIndexCommand:
         assert result.exit_code == 0
 
 
+class TestIndexAutoSync:
+    """When a repo is already indexed, 'index' should delegate to sync."""
+
+    def test_already_indexed_delegates_to_syncer(self) -> None:
+        mock_ctx = _make_mock_ctx()
+        mock_ctx.repo_manager.get_repo.return_value = _make_repo(
+            indexed_commit="abc123"
+        )
+        mock_ctx.syncer.sync.return_value = SyncResult(
+            already_current=False,
+            files_added=1,
+            files_modified=2,
+            files_deleted=0,
+            llm_calls_made=4,
+            tokens_used=2000,
+            tier1_rebuilt=False,
+            old_commit="abc123",
+            new_commit="def456",
+            duration_seconds=3.0,
+        )
+
+        with patch("codetex_mcp.cli.app._get_app", return_value=mock_ctx):
+            result = runner.invoke(app, ["index", "my-repo"])
+
+        assert result.exit_code == 0
+        assert "incremental" in result.output
+        mock_ctx.syncer.sync.assert_called_once()
+        mock_ctx.indexer.index.assert_not_called()
+
+    def test_already_indexed_already_current(self) -> None:
+        mock_ctx = _make_mock_ctx()
+        mock_ctx.repo_manager.get_repo.return_value = _make_repo(
+            indexed_commit="abc123"
+        )
+        mock_ctx.syncer.sync.return_value = SyncResult(
+            already_current=True,
+            files_added=0,
+            files_modified=0,
+            files_deleted=0,
+            llm_calls_made=0,
+            tokens_used=0,
+            tier1_rebuilt=False,
+            old_commit="abc123",
+            new_commit="abc123",
+            duration_seconds=0.1,
+        )
+
+        with patch("codetex_mcp.cli.app._get_app", return_value=mock_ctx):
+            result = runner.invoke(app, ["index", "my-repo"])
+
+        assert result.exit_code == 0
+        assert "up to date" in result.output
+        mock_ctx.indexer.index.assert_not_called()
+
+    def test_already_indexed_dry_run_delegates_to_syncer(self) -> None:
+        mock_ctx = _make_mock_ctx()
+        mock_ctx.repo_manager.get_repo.return_value = _make_repo(
+            indexed_commit="abc123"
+        )
+        mock_ctx.syncer.sync.return_value = SyncResult(
+            already_current=False,
+            files_added=3,
+            files_modified=1,
+            files_deleted=0,
+            llm_calls_made=5,
+            tokens_used=0,
+            tier1_rebuilt=False,
+            old_commit="abc123",
+            new_commit="def456",
+            duration_seconds=0.0,
+        )
+
+        with patch("codetex_mcp.cli.app._get_app", return_value=mock_ctx):
+            result = runner.invoke(app, ["index", "my-repo", "--dry-run"])
+
+        assert result.exit_code == 0
+        assert "Incremental" in result.output
+        assert "3" in result.output  # files added
+        _, kwargs = mock_ctx.syncer.sync.call_args
+        assert kwargs.get("dry_run") is True
+        mock_ctx.indexer.index.assert_not_called()
+
+    def test_already_indexed_dry_run_already_current(self) -> None:
+        mock_ctx = _make_mock_ctx()
+        mock_ctx.repo_manager.get_repo.return_value = _make_repo(
+            indexed_commit="abc123"
+        )
+        mock_ctx.syncer.sync.return_value = SyncResult(
+            already_current=True,
+            files_added=0,
+            files_modified=0,
+            files_deleted=0,
+            llm_calls_made=0,
+            tokens_used=0,
+            tier1_rebuilt=False,
+            old_commit="abc123",
+            new_commit="abc123",
+            duration_seconds=0.0,
+        )
+
+        with patch("codetex_mcp.cli.app._get_app", return_value=mock_ctx):
+            result = runner.invoke(app, ["index", "my-repo", "--dry-run"])
+
+        assert result.exit_code == 0
+        assert "up to date" in result.output
+
+    def test_force_flag_uses_full_indexer(self) -> None:
+        mock_ctx = _make_mock_ctx()
+        mock_ctx.repo_manager.get_repo.return_value = _make_repo(
+            indexed_commit="abc123"
+        )
+        mock_ctx.indexer.index.return_value = IndexResult(
+            files_indexed=25,
+            symbols_extracted=100,
+            llm_calls_made=30,
+            tokens_used=15000,
+            duration_seconds=12.5,
+            commit_sha="def456789012",
+        )
+
+        with patch("codetex_mcp.cli.app._get_app", return_value=mock_ctx):
+            result = runner.invoke(app, ["index", "my-repo", "--force"])
+
+        assert result.exit_code == 0
+        assert "Index Complete" in result.output
+        mock_ctx.indexer.index.assert_called_once()
+        mock_ctx.syncer.sync.assert_not_called()
+
+    def test_force_dry_run_uses_full_indexer(self) -> None:
+        mock_ctx = _make_mock_ctx()
+        mock_ctx.repo_manager.get_repo.return_value = _make_repo(
+            indexed_commit="abc123"
+        )
+        mock_ctx.indexer.index.return_value = IndexResult(
+            files_indexed=25,
+            symbols_extracted=100,
+            llm_calls_made=30,
+            tokens_used=15000,
+            duration_seconds=0.0,
+            commit_sha="",
+        )
+
+        with patch("codetex_mcp.cli.app._get_app", return_value=mock_ctx):
+            result = runner.invoke(app, ["index", "my-repo", "--force", "--dry-run"])
+
+        assert result.exit_code == 0
+        assert "Full Index" in result.output
+        mock_ctx.indexer.index.assert_called_once()
+        mock_ctx.syncer.sync.assert_not_called()
+
+    def test_first_time_index_uses_full_indexer(self) -> None:
+        """indexed_commit=None means never indexed — should use full indexer."""
+        mock_ctx = _make_mock_ctx()
+        mock_ctx.repo_manager.get_repo.return_value = _make_repo(indexed_commit=None)
+        mock_ctx.indexer.index.return_value = IndexResult(
+            files_indexed=10,
+            symbols_extracted=20,
+            llm_calls_made=12,
+            tokens_used=5000,
+            duration_seconds=5.0,
+            commit_sha="abc123",
+        )
+
+        with patch("codetex_mcp.cli.app._get_app", return_value=mock_ctx):
+            result = runner.invoke(app, ["index", "my-repo"])
+
+        assert result.exit_code == 0
+        mock_ctx.indexer.index.assert_called_once()
+        mock_ctx.syncer.sync.assert_not_called()
+
+    def test_incremental_passes_on_step(self) -> None:
+        mock_ctx = _make_mock_ctx()
+        mock_ctx.repo_manager.get_repo.return_value = _make_repo(
+            indexed_commit="abc123"
+        )
+        mock_ctx.syncer.sync.return_value = SyncResult(
+            already_current=False,
+            files_added=1,
+            files_modified=0,
+            files_deleted=0,
+            llm_calls_made=1,
+            tokens_used=500,
+            tier1_rebuilt=False,
+            old_commit="abc123",
+            new_commit="def456",
+            duration_seconds=1.0,
+        )
+
+        with patch("codetex_mcp.cli.app._get_app", return_value=mock_ctx):
+            result = runner.invoke(app, ["index", "my-repo"])
+
+        assert result.exit_code == 0
+        _, kwargs = mock_ctx.syncer.sync.call_args
+        assert "on_step" in kwargs
+        assert kwargs["on_step"] is not None
+
+    def test_incremental_closes_db(self) -> None:
+        mock_ctx = _make_mock_ctx()
+        mock_ctx.repo_manager.get_repo.return_value = _make_repo(
+            indexed_commit="abc123"
+        )
+        mock_ctx.syncer.sync.return_value = SyncResult(
+            already_current=True,
+            files_added=0,
+            files_modified=0,
+            files_deleted=0,
+            llm_calls_made=0,
+            tokens_used=0,
+            tier1_rebuilt=False,
+            old_commit="abc123",
+            new_commit="abc123",
+            duration_seconds=0.0,
+        )
+
+        with patch("codetex_mcp.cli.app._get_app", return_value=mock_ctx):
+            runner.invoke(app, ["index", "my-repo"])
+
+        mock_ctx.db.close.assert_called_once()
+
+
 # ---- sync command ----
 
 

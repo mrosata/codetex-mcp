@@ -16,6 +16,7 @@ from rich.table import Table
 from codetex_mcp.config.settings import Settings
 from codetex_mcp.core import AppContext, create_app
 from codetex_mcp.exceptions import CodetexError
+from codetex_mcp.storage.repositories import Repository
 
 app = typer.Typer(name="codetex", add_completion=False)
 config_app = typer.Typer(name="config", help="View and update configuration.")
@@ -158,69 +159,32 @@ def index(
     dry_run: bool = typer.Option(
         False, "--dry-run", help="Show estimated work without making API calls"
     ),
+    force: bool = typer.Option(
+        False, "--force", "-f", help="Force full re-index even if already indexed"
+    ),
     timeout: int = typer.Option(
         _DEFAULT_TIMEOUT,
         "--timeout",
         help="Maximum seconds before aborting (default 1800)",
     ),
 ) -> None:
-    """Build a full index for a repository."""
+    """Build or update the index for a repository.
+
+    If the repo is already indexed, runs an incremental sync (only changed files).
+    Use --force to discard the existing index and rebuild from scratch.
+    """
 
     async def _index() -> None:
         ctx = await _get_app()
         try:
             repo = await ctx.repo_manager.get_repo(repo_name)
 
-            if dry_run:
-                result = await ctx.indexer.index(repo, path_filter=path, dry_run=True)
-                table = Table(title="Dry Run — Index Estimate")
-                table.add_column("Metric", style="bold")
-                table.add_column("Value")
-                table.add_row("Files to index", str(result.files_indexed))
-                table.add_row("Symbols found", str(result.symbols_extracted))
-                table.add_row("Estimated LLM calls", str(result.llm_calls_made))
-                table.add_row("Estimated tokens", f"{result.tokens_used:,}")
-                console.print(table)
-                return
+            use_full_index = force or repo.indexed_commit is None
 
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                TextColumn("[dim]{task.fields[detail]}[/dim]"),
-                console=console,
-            ) as progress:
-                task_id = progress.add_task("Starting...", detail="")
-
-                def on_step(step: str) -> None:
-                    progress.update(task_id, description=step, detail="")
-
-                def on_progress(current: int, total: int, file_path: str) -> None:
-                    progress.update(
-                        task_id,
-                        description="Parsing files...",
-                        detail=f"{current}/{total}",
-                    )
-
-                result = await asyncio.wait_for(
-                    ctx.indexer.index(
-                        repo,
-                        path_filter=path,
-                        on_progress=on_progress,
-                        on_step=on_step,
-                    ),
-                    timeout=timeout,
-                )
-
-            table = Table(title="Index Complete")
-            table.add_column("Metric", style="bold")
-            table.add_column("Value")
-            table.add_row("Files indexed", str(result.files_indexed))
-            table.add_row("Symbols extracted", str(result.symbols_extracted))
-            table.add_row("LLM calls", str(result.llm_calls_made))
-            table.add_row("Tokens used", f"{result.tokens_used:,}")
-            table.add_row("Duration", f"{result.duration_seconds:.1f}s")
-            table.add_row("Commit", result.commit_sha[:12])
-            console.print(table)
+            if use_full_index:
+                await _run_full_index(ctx, repo, path, dry_run, timeout)
+            else:
+                await _run_incremental(ctx, repo, path, dry_run, timeout)
         except TimeoutError:
             err_console.print(
                 f"Error: Indexing timed out after {timeout}s. "
@@ -234,6 +198,120 @@ def index(
         _run(_index())
     except CodetexError as exc:
         _handle_error(exc)
+
+
+async def _run_full_index(
+    ctx: AppContext,
+    repo: Repository,
+    path: str | None,
+    dry_run: bool,
+    timeout: int,
+) -> None:
+    """Execute the full 9-step index pipeline."""
+    if dry_run:
+        result = await ctx.indexer.index(repo, path_filter=path, dry_run=True)
+        table = Table(title="Dry Run — Full Index Estimate")
+        table.add_column("Metric", style="bold")
+        table.add_column("Value")
+        table.add_row("Files to index", str(result.files_indexed))
+        table.add_row("Symbols found", str(result.symbols_extracted))
+        table.add_row("Estimated LLM calls", str(result.llm_calls_made))
+        table.add_row("Estimated tokens", f"{result.tokens_used:,}")
+        console.print(table)
+        return
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        TextColumn("[dim]{task.fields[detail]}[/dim]"),
+        console=console,
+    ) as progress:
+        task_id = progress.add_task("Starting...", detail="")
+
+        def on_step(step: str) -> None:
+            progress.update(task_id, description=step, detail="")
+
+        def on_progress(current: int, total: int, file_path: str) -> None:
+            progress.update(
+                task_id,
+                description="Parsing files...",
+                detail=f"{current}/{total}",
+            )
+
+        result = await asyncio.wait_for(
+            ctx.indexer.index(
+                repo,
+                path_filter=path,
+                on_progress=on_progress,
+                on_step=on_step,
+            ),
+            timeout=timeout,
+        )
+
+    table = Table(title="Index Complete")
+    table.add_column("Metric", style="bold")
+    table.add_column("Value")
+    table.add_row("Files indexed", str(result.files_indexed))
+    table.add_row("Symbols extracted", str(result.symbols_extracted))
+    table.add_row("LLM calls", str(result.llm_calls_made))
+    table.add_row("Tokens used", f"{result.tokens_used:,}")
+    table.add_row("Duration", f"{result.duration_seconds:.1f}s")
+    table.add_row("Commit", result.commit_sha[:12])
+    console.print(table)
+
+
+async def _run_incremental(
+    ctx: AppContext,
+    repo: Repository,
+    path: str | None,
+    dry_run: bool,
+    timeout: int,
+) -> None:
+    """Delegate to the incremental sync pipeline."""
+    if dry_run:
+        sync_result = await ctx.syncer.sync(repo, path_filter=path, dry_run=True)
+        if sync_result.already_current:
+            console.print("Already up to date.")
+            return
+        table = Table(title="Dry Run — Incremental Update Estimate")
+        table.add_column("Metric", style="bold")
+        table.add_column("Value")
+        table.add_row("Files added", str(sync_result.files_added))
+        table.add_row("Files modified", str(sync_result.files_modified))
+        table.add_row("Files deleted", str(sync_result.files_deleted))
+        table.add_row("Estimated LLM calls", str(sync_result.llm_calls_made))
+        console.print(table)
+        return
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+    ) as progress:
+        task_id = progress.add_task("Starting...", total=None)
+
+        def on_step(step: str) -> None:
+            progress.update(task_id, description=step)
+
+        sync_result = await asyncio.wait_for(
+            ctx.syncer.sync(repo, path_filter=path, on_step=on_step),
+            timeout=timeout,
+        )
+
+    if sync_result.already_current:
+        console.print("Already up to date.")
+        return
+
+    table = Table(title="Index Updated (incremental)")
+    table.add_column("Metric", style="bold")
+    table.add_column("Value")
+    table.add_row("Files added", str(sync_result.files_added))
+    table.add_row("Files modified", str(sync_result.files_modified))
+    table.add_row("Files deleted", str(sync_result.files_deleted))
+    table.add_row("LLM calls", str(sync_result.llm_calls_made))
+    table.add_row("Tokens used", f"{sync_result.tokens_used:,}")
+    table.add_row("Duration", f"{sync_result.duration_seconds:.1f}s")
+    console.print(table)
 
 
 @app.command()
