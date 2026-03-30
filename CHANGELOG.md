@@ -1,6 +1,20 @@
 # CHANGELOG
 
 
+## v0.2.1 (2026-03-30)
+
+### Bug Fixes
+
+- Delete vec embeddings before symbols during re-index
+  ([`081acdf`](https://github.com/mrosata/codetex-mcp/commit/081acdfc77851eb3a4b4065be183c3cb4a8f5c12))
+
+Vec0 virtual tables don't participate in SQLite FK cascades, so deleting symbols without first
+  removing their vec_symbol_embeddings rows left orphaned references that triggered FOREIGN KEY
+  constraint failures on subsequent index runs.
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+
+
 ## v0.2.0 (2026-03-30)
 
 ### Features
