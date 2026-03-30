@@ -1,6 +1,20 @@
 # CHANGELOG
 
 
+## v0.1.2 (2026-03-30)
+
+### Bug Fixes
+
+- **ci**: Move dev deps to dependency-groups and fix lint/format
+  ([`818cb98`](https://github.com/mrosata/codetex-mcp/commit/818cb982a09b251b1834b594c2187f958c703402))
+
+Move dev dependencies (ruff, mypy, pytest) from [project.optional-dependencies] to
+  [dependency-groups] so uv sync installs them automatically in CI. Fix ruff lint errors (unused
+  imports) and apply ruff format across all source files.
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+
+
 ## v0.1.1 (2026-03-29)
 
 ### Bug Fixes
