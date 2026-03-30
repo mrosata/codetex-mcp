@@ -1,6 +1,20 @@
 # CHANGELOG
 
 
+## v0.2.0 (2026-03-30)
+
+### Features
+
+- Include all tree-sitter grammars as default dependencies
+  ([`55ec9b6`](https://github.com/mrosata/codetex-mcp/commit/55ec9b63752681e7df410305093aaa5834aa35f1))
+
+Move all 8 tree-sitter grammar packages (Python, JS, TS, Go, Rust, Java, Ruby, C/C++) from optional
+  extras into main dependencies so they install automatically. Users no longer need separate install
+  steps for AST parsing support.
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+
+
 ## v0.1.3 (2026-03-30)
 
 ### Bug Fixes
