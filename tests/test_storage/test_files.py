@@ -104,8 +104,18 @@ class TestUpsertFile:
 
         # Insert a symbol — this changes last_insert_rowid() to the symbol's id
         symbol_id = await upsert_symbol(
-            db, file_id_1, repo_id, "func_a", "function",
-            "def func_a():", None, 1, 5, None, None, None,
+            db,
+            file_id_1,
+            repo_id,
+            "func_a",
+            "function",
+            "def func_a():",
+            None,
+            1,
+            5,
+            None,
+            None,
+            None,
         )
         # Sanity: symbol_id should be different from file_id
         assert symbol_id != file_id_1 or True  # might collide on id=1, that's ok

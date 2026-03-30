@@ -733,8 +733,7 @@ class TestReindexIntegrity:
 
         # Verify new symbol IDs are valid (point to existing files)
         cursor = await db.execute(
-            "SELECT s.id, s.file_id FROM symbols s "
-            "WHERE s.repo_id = ?",
+            "SELECT s.id, s.file_id FROM symbols s WHERE s.repo_id = ?",
             (repo_record.id,),
         )
         for sym_row in await cursor.fetchall():

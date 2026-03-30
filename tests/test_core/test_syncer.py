@@ -949,14 +949,21 @@ class TestSyncFileIdIntegrity:
         mock_git = AsyncMock(spec=GitOperations)
         mock_git.get_head_commit.return_value = "new_commit_sha"
         mock_git.diff_commits.return_value = DiffResult(
-            added=[], modified=["src/main.py"], deleted=[], renamed=[],
+            added=[],
+            modified=["src/main.py"],
+            deleted=[],
+            renamed=[],
         )
 
         syncer = Syncer(db, mock_git, mock_parser, mock_llm, mock_embedder, config)
         repo_record = Repository(
-            id=repo_id, name="my-repo", remote_url=None,
-            local_path=str(repo_dir), default_branch="main",
-            indexed_commit="old_commit_sha", last_indexed_at=None,
+            id=repo_id,
+            name="my-repo",
+            remote_url=None,
+            local_path=str(repo_dir),
+            default_branch="main",
+            indexed_commit="old_commit_sha",
+            last_indexed_at=None,
             created_at="2024-01-01T00:00:00",
         )
         await syncer.sync(repo_record)
@@ -995,14 +1002,21 @@ class TestSyncFileIdIntegrity:
         mock_git = AsyncMock(spec=GitOperations)
         mock_git.get_head_commit.return_value = "new_commit_sha"
         mock_git.diff_commits.return_value = DiffResult(
-            added=[], modified=["src/main.py"], deleted=[], renamed=[],
+            added=[],
+            modified=["src/main.py"],
+            deleted=[],
+            renamed=[],
         )
 
         syncer = Syncer(db, mock_git, mock_parser, mock_llm, mock_embedder, config)
         repo_record = Repository(
-            id=repo_id, name="my-repo", remote_url=None,
-            local_path=str(repo_dir), default_branch="main",
-            indexed_commit="old_commit_sha", last_indexed_at=None,
+            id=repo_id,
+            name="my-repo",
+            remote_url=None,
+            local_path=str(repo_dir),
+            default_branch="main",
+            indexed_commit="old_commit_sha",
+            last_indexed_at=None,
             created_at="2024-01-01T00:00:00",
         )
         await syncer.sync(repo_record)
@@ -1042,14 +1056,21 @@ class TestSyncFileIdIntegrity:
         mock_git = AsyncMock(spec=GitOperations)
         mock_git.get_head_commit.return_value = "new_commit_sha"
         mock_git.diff_commits.return_value = DiffResult(
-            added=[], modified=["src/main.py"], deleted=[], renamed=[],
+            added=[],
+            modified=["src/main.py"],
+            deleted=[],
+            renamed=[],
         )
 
         syncer = Syncer(db, mock_git, mock_parser, mock_llm, mock_embedder, config)
         repo_record = Repository(
-            id=repo_id, name="my-repo", remote_url=None,
-            local_path=str(repo_dir), default_branch="main",
-            indexed_commit="old_commit_sha", last_indexed_at=None,
+            id=repo_id,
+            name="my-repo",
+            remote_url=None,
+            local_path=str(repo_dir),
+            default_branch="main",
+            indexed_commit="old_commit_sha",
+            last_indexed_at=None,
             created_at="2024-01-01T00:00:00",
         )
         # Must not raise
