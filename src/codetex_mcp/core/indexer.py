@@ -42,6 +42,8 @@ from codetex_mcp.storage.symbols import (
     update_symbol_summary,
 )
 from codetex_mcp.storage.vectors import (
+    delete_file_embedding,
+    delete_symbol_embedding,
     upsert_file_embedding,
     upsert_symbol_embedding,
 )
@@ -260,7 +262,14 @@ class Indexer:
 
             work.file_id = file_id
 
-            # Clear old symbols and dependencies before re-inserting
+            # Clear old vec embeddings, symbols, and dependencies before
+            # re-inserting.  Vec0 virtual tables don't participate in FK
+            # cascades, so embeddings must be deleted explicitly first.
+            existing_symbols = await list_symbols_by_file(self._db, file_id)
+            for old_sym in existing_symbols:
+                await delete_symbol_embedding(self._db, old_sym.id)
+            await delete_file_embedding(self._db, file_id)
+
             await delete_symbols_by_file(self._db, file_id)
             await delete_dependencies_by_file(self._db, file_id)
 
