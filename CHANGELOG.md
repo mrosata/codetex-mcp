@@ -1,6 +1,28 @@
 # CHANGELOG
 
 
+## v0.2.2 (2026-03-30)
+
+### Bug Fixes
+
+- Always query back file_id after upsert — lastrowid unreliable with UPSERT
+  ([`a25f35e`](https://github.com/mrosata/codetex-mcp/commit/a25f35eb63c57982e97e048ad79f460aff1d9ce8))
+
+SQLite documents that last_insert_rowid() is NOT updated when an UPSERT triggers DO UPDATE rather
+  than INSERT. The previous code relied on cursor.lastrowid with a fallback only for the value 0,
+  but the stale value can be any non-zero rowid from a previous INSERT on a different table (e.g.
+  upsert_symbol), causing the indexer to use a non-existent file_id and fail with FOREIGN KEY
+  constraint violation.
+
+Fix: upsert_file now always queries back via (repo_id, path) to get the authoritative file_id.
+  Removes the broken lastrowid+fallback pattern from both the indexer and syncer.
+
+Ref: https://sqlite.org/c3ref/last_insert_rowid.html "an UPSERT that results in an UPDATE rather
+  than an INSERT does not change the last_insert_rowid()"
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+
+
 ## v0.2.1 (2026-03-30)
 
 ### Bug Fixes
