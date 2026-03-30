@@ -223,7 +223,7 @@ wheels = [
 
 [[package]]
 name = "codetex-mcp"
-version = "0.2.2"
+version = "0.3.1"
 source = { editable = "." }
 dependencies = [
     { name = "aiosqlite" },
