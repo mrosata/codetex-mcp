@@ -1,6 +1,16 @@
 # CHANGELOG
 
 
+## v0.1.3 (2026-03-30)
+
+### Bug Fixes
+
+- Add .coverage to .gitignore
+  ([`178b3e9`](https://github.com/mrosata/codetex-mcp/commit/178b3e99a9a202accd0932fd8e2105ef4649d939))
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+
+
 ## v0.1.2 (2026-03-30)
 
 ### Bug Fixes
