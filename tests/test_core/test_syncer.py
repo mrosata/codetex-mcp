@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import struct
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
@@ -876,3 +877,181 @@ class TestSyncResult:
         assert result.old_commit == "abc123"
         assert result.new_commit == "def456"
         assert result.duration_seconds == 2.5
+
+
+# -- Sync File ID Integrity (regression tests) --------------------------------
+
+
+class TestSyncFileIdIntegrity:
+    """Regression tests ensuring sync correctly handles file IDs and FK integrity."""
+
+    @pytest_asyncio.fixture
+    async def indexed_with_embeddings(  # type: ignore[misc]
+        self,
+        db: Database,
+        repo_id: int,
+        repo_dir: Path,
+    ) -> None:
+        """Pre-populate with files + symbols + embeddings (simulating a prior index)."""
+        # Insert main.py
+        cursor = await db.execute(
+            "INSERT INTO files (repo_id, path, language, lines_of_code, token_count, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, datetime('now'))",
+            (repo_id, "src/main.py", "python", 5, 15),
+        )
+        await db.conn.commit()
+        assert cursor.lastrowid is not None
+        main_file_id = cursor.lastrowid
+
+        cursor = await db.execute(
+            "INSERT INTO symbols (file_id, repo_id, name, kind, signature, start_line, end_line, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))",
+            (main_file_id, repo_id, "main", "function", "def main():", 3, 4),
+        )
+        await db.conn.commit()
+        assert cursor.lastrowid is not None
+        main_sym_id = cursor.lastrowid
+
+        embedding = struct.pack(f"{384}f", *([0.5] * 384))
+        await db.execute(
+            "INSERT INTO vec_file_embeddings(file_id, embedding) VALUES (?, ?)",
+            (main_file_id, embedding),
+        )
+        await db.execute(
+            "INSERT INTO vec_symbol_embeddings(symbol_id, embedding) VALUES (?, ?)",
+            (main_sym_id, embedding),
+        )
+        await db.conn.commit()
+
+    @pytest.mark.asyncio
+    async def test_modified_file_keeps_same_id(
+        self,
+        db: Database,
+        repo_id: int,
+        repo_dir: Path,
+        indexed_with_embeddings: None,
+        mock_parser: MagicMock,
+        mock_llm: AsyncMock,
+        mock_embedder: MagicMock,
+        config: Settings,
+    ) -> None:
+        """File ID must remain stable when a file is modified and re-upserted."""
+        # Get original file ID
+        cursor = await db.execute(
+            "SELECT id FROM files WHERE repo_id = ? AND path = ?",
+            (repo_id, "src/main.py"),
+        )
+        row = await cursor.fetchone()
+        assert row is not None
+        original_id = row[0]
+
+        # Sync with only modified (no add/delete)
+        mock_git = AsyncMock(spec=GitOperations)
+        mock_git.get_head_commit.return_value = "new_commit_sha"
+        mock_git.diff_commits.return_value = DiffResult(
+            added=[], modified=["src/main.py"], deleted=[], renamed=[],
+        )
+
+        syncer = Syncer(db, mock_git, mock_parser, mock_llm, mock_embedder, config)
+        repo_record = Repository(
+            id=repo_id, name="my-repo", remote_url=None,
+            local_path=str(repo_dir), default_branch="main",
+            indexed_commit="old_commit_sha", last_indexed_at=None,
+            created_at="2024-01-01T00:00:00",
+        )
+        await syncer.sync(repo_record)
+
+        # File ID must be unchanged
+        cursor = await db.execute(
+            "SELECT id FROM files WHERE repo_id = ? AND path = ?",
+            (repo_id, "src/main.py"),
+        )
+        row = await cursor.fetchone()
+        assert row is not None
+        assert row[0] == original_id
+
+    @pytest.mark.asyncio
+    async def test_modified_file_symbols_replaced(
+        self,
+        db: Database,
+        repo_id: int,
+        repo_dir: Path,
+        indexed_with_embeddings: None,
+        mock_parser: MagicMock,
+        mock_llm: AsyncMock,
+        mock_embedder: MagicMock,
+        config: Settings,
+    ) -> None:
+        """Old symbols must be deleted and new ones inserted on sync."""
+        # Record old symbol IDs
+        cursor = await db.execute(
+            "SELECT s.id FROM symbols s JOIN files f ON s.file_id = f.id "
+            "WHERE f.repo_id = ? AND f.path = ?",
+            (repo_id, "src/main.py"),
+        )
+        old_sym_ids = {row[0] for row in await cursor.fetchall()}
+        assert len(old_sym_ids) > 0
+
+        mock_git = AsyncMock(spec=GitOperations)
+        mock_git.get_head_commit.return_value = "new_commit_sha"
+        mock_git.diff_commits.return_value = DiffResult(
+            added=[], modified=["src/main.py"], deleted=[], renamed=[],
+        )
+
+        syncer = Syncer(db, mock_git, mock_parser, mock_llm, mock_embedder, config)
+        repo_record = Repository(
+            id=repo_id, name="my-repo", remote_url=None,
+            local_path=str(repo_dir), default_branch="main",
+            indexed_commit="old_commit_sha", last_indexed_at=None,
+            created_at="2024-01-01T00:00:00",
+        )
+        await syncer.sync(repo_record)
+
+        # Old symbol IDs should be gone
+        for old_id in old_sym_ids:
+            cursor = await db.execute(
+                "SELECT COUNT(*) FROM symbols WHERE id = ?", (old_id,)
+            )
+            row = await cursor.fetchone()
+            assert row is not None
+            assert row[0] == 0
+
+        # New symbols should exist
+        cursor = await db.execute(
+            "SELECT COUNT(*) FROM symbols WHERE repo_id = ?",
+            (repo_id,),
+        )
+        row = await cursor.fetchone()
+        assert row is not None
+        assert row[0] > 0
+
+    @pytest.mark.asyncio
+    async def test_sync_no_fk_violation_on_modified_files(
+        self,
+        db: Database,
+        repo_id: int,
+        repo_dir: Path,
+        indexed_with_embeddings: None,
+        mock_parser: MagicMock,
+        mock_llm: AsyncMock,
+        mock_embedder: MagicMock,
+        config: Settings,
+    ) -> None:
+        """Regression: syncing modified files with pre-existing embeddings
+        must not raise FK constraint violations."""
+        mock_git = AsyncMock(spec=GitOperations)
+        mock_git.get_head_commit.return_value = "new_commit_sha"
+        mock_git.diff_commits.return_value = DiffResult(
+            added=[], modified=["src/main.py"], deleted=[], renamed=[],
+        )
+
+        syncer = Syncer(db, mock_git, mock_parser, mock_llm, mock_embedder, config)
+        repo_record = Repository(
+            id=repo_id, name="my-repo", remote_url=None,
+            local_path=str(repo_dir), default_branch="main",
+            indexed_commit="old_commit_sha", last_indexed_at=None,
+            created_at="2024-01-01T00:00:00",
+        )
+        # Must not raise
+        result = await syncer.sync(repo_record)
+        assert result.files_modified == 1

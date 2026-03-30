@@ -190,6 +190,69 @@ class TestSearchFileEmbeddings:
         assert results == []
 
 
+class TestVecOrphanConsistency:
+    """Tests demonstrating vec0 tables don't participate in FK cascades."""
+
+    @pytest.mark.asyncio
+    async def test_delete_symbol_embedding_before_symbol_delete(
+        self, db: Database, file_id: int, symbol_id: int
+    ) -> None:
+        """Proper cleanup: delete embedding first, then delete symbol."""
+        embedding = _make_embedding(0.3)
+        await upsert_symbol_embedding(db, symbol_id, embedding)
+
+        # Delete embedding first
+        await delete_symbol_embedding(db, symbol_id)
+
+        # Now delete the symbol
+        from codetex_mcp.storage.symbols import delete_symbols_by_file
+
+        await delete_symbols_by_file(db, file_id)
+
+        # Verify both are gone
+        results = await search_symbol_embeddings(db, embedding, limit=10)
+        assert all(r[0] != symbol_id for r in results)
+
+        cursor = await db.execute(
+            "SELECT COUNT(*) FROM symbols WHERE id = ?", (symbol_id,)
+        )
+        row = await cursor.fetchone()
+        assert row is not None
+        assert row[0] == 0
+
+    @pytest.mark.asyncio
+    async def test_orphaned_symbol_embedding_after_symbol_delete(
+        self, db: Database, file_id: int, symbol_id: int
+    ) -> None:
+        """Deleting a symbol WITHOUT deleting its embedding first leaves
+        an orphaned row in the vec table — demonstrating why manual cleanup
+        is necessary."""
+        embedding = _make_embedding(0.4)
+        await upsert_symbol_embedding(db, symbol_id, embedding)
+
+        # Delete the symbol WITHOUT deleting the embedding
+        from codetex_mcp.storage.symbols import delete_symbols_by_file
+
+        await delete_symbols_by_file(db, file_id)
+
+        # The symbol is gone
+        cursor = await db.execute(
+            "SELECT COUNT(*) FROM symbols WHERE id = ?", (symbol_id,)
+        )
+        row = await cursor.fetchone()
+        assert row is not None
+        assert row[0] == 0
+
+        # But the vec embedding is still there (orphaned)
+        cursor = await db.execute(
+            "SELECT COUNT(*) FROM vec_symbol_embeddings WHERE symbol_id = ?",
+            (symbol_id,),
+        )
+        row = await cursor.fetchone()
+        assert row is not None
+        assert row[0] == 1  # orphan!
+
+
 class TestSearchSymbolEmbeddings:
     @pytest.mark.asyncio
     async def test_search_returns_nearest_neighbors(

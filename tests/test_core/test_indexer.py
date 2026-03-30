@@ -671,6 +671,179 @@ class TestReindex:
         assert row[0] == 2  # still 2, not 4
 
 
+# -- Re-index Integrity (regression tests) -----------------------------------
+
+
+class TestReindexIntegrity:
+    @pytest.mark.asyncio
+    async def test_reindex_preserves_file_ids(
+        self,
+        indexer: Indexer,
+        repo_record: Repository,
+        db: Database,
+    ) -> None:
+        """File IDs should remain stable across re-index runs."""
+        await indexer.index(repo_record)
+
+        cursor = await db.execute(
+            "SELECT id, path FROM files WHERE repo_id = ? ORDER BY path",
+            (repo_record.id,),
+        )
+        first_ids = {row[1]: row[0] for row in await cursor.fetchall()}
+
+        await indexer.index(repo_record)
+
+        cursor = await db.execute(
+            "SELECT id, path FROM files WHERE repo_id = ? ORDER BY path",
+            (repo_record.id,),
+        )
+        second_ids = {row[1]: row[0] for row in await cursor.fetchall()}
+
+        assert first_ids == second_ids
+
+    @pytest.mark.asyncio
+    async def test_reindex_replaces_symbols(
+        self,
+        indexer: Indexer,
+        repo_record: Repository,
+        db: Database,
+    ) -> None:
+        """Symbols must be replaced, not duplicated, on re-index."""
+        await indexer.index(repo_record)
+
+        cursor = await db.execute(
+            "SELECT COUNT(*) FROM symbols WHERE repo_id = ?",
+            (repo_record.id,),
+        )
+        row = await cursor.fetchone()
+        assert row is not None
+        count_1 = row[0]
+
+        await indexer.index(repo_record)
+
+        cursor = await db.execute(
+            "SELECT COUNT(*) FROM symbols WHERE repo_id = ?",
+            (repo_record.id,),
+        )
+        row = await cursor.fetchone()
+        assert row is not None
+        count_2 = row[0]
+
+        assert count_1 == count_2  # no duplicates
+
+        # Verify new symbol IDs are valid (point to existing files)
+        cursor = await db.execute(
+            "SELECT s.id, s.file_id FROM symbols s "
+            "WHERE s.repo_id = ?",
+            (repo_record.id,),
+        )
+        for sym_row in await cursor.fetchall():
+            file_cursor = await db.execute(
+                "SELECT COUNT(*) FROM files WHERE id = ?", (sym_row[1],)
+            )
+            file_row = await file_cursor.fetchone()
+            assert file_row is not None
+            assert file_row[0] == 1
+
+    @pytest.mark.asyncio
+    async def test_reindex_replaces_embeddings(
+        self,
+        indexer: Indexer,
+        repo_record: Repository,
+        db: Database,
+    ) -> None:
+        """Embeddings should exist for all current files/symbols with no orphans."""
+        await indexer.index(repo_record)
+        await indexer.index(repo_record)
+
+        # Check file embeddings match current files
+        cursor = await db.execute(
+            "SELECT COUNT(*) FROM vec_file_embeddings",
+        )
+        row = await cursor.fetchone()
+        assert row is not None
+        vec_file_count = row[0]
+
+        cursor = await db.execute(
+            "SELECT COUNT(*) FROM files WHERE repo_id = ?",
+            (repo_record.id,),
+        )
+        row = await cursor.fetchone()
+        assert row is not None
+        file_count = row[0]
+
+        assert vec_file_count == file_count
+
+        # Check symbol embeddings match current symbols
+        cursor = await db.execute(
+            "SELECT COUNT(*) FROM vec_symbol_embeddings",
+        )
+        row = await cursor.fetchone()
+        assert row is not None
+        vec_sym_count = row[0]
+
+        cursor = await db.execute(
+            "SELECT COUNT(*) FROM symbols WHERE repo_id = ?",
+            (repo_record.id,),
+        )
+        row = await cursor.fetchone()
+        assert row is not None
+        sym_count = row[0]
+
+        assert vec_sym_count == sym_count
+
+    @pytest.mark.asyncio
+    async def test_reindex_no_fk_violation(
+        self,
+        indexer: Indexer,
+        repo_record: Repository,
+    ) -> None:
+        """Regression: re-index with embeddings must not raise FK constraint errors."""
+        await indexer.index(repo_record)
+        # Second index must not raise
+        await indexer.index(repo_record)
+
+    @pytest.mark.asyncio
+    async def test_reindex_cleans_up_vec_embeddings_before_symbol_delete(
+        self,
+        indexer: Indexer,
+        repo_record: Repository,
+        db: Database,
+    ) -> None:
+        """Old symbol embeddings must be cleaned up — no orphans pointing
+        to deleted symbol_ids."""
+        await indexer.index(repo_record)
+
+        # Record symbol IDs from first index
+        cursor = await db.execute(
+            "SELECT id FROM symbols WHERE repo_id = ?",
+            (repo_record.id,),
+        )
+        first_symbol_ids = {row[0] for row in await cursor.fetchall()}
+        assert len(first_symbol_ids) > 0
+
+        # Re-index
+        await indexer.index(repo_record)
+
+        # Get current symbol IDs
+        cursor = await db.execute(
+            "SELECT id FROM symbols WHERE repo_id = ?",
+            (repo_record.id,),
+        )
+        current_symbol_ids = {row[0] for row in await cursor.fetchall()}
+
+        # Verify no orphaned vec embeddings for old symbol_ids that no longer exist
+        deleted_ids = first_symbol_ids - current_symbol_ids
+        for old_id in deleted_ids:
+            cursor = await db.execute(
+                "SELECT COUNT(*) FROM vec_symbol_embeddings WHERE symbol_id = ?",
+                (old_id,),
+            )
+            row = await cursor.fetchone()
+            assert row is not None
+            assert row[0] == 0, f"Orphaned embedding for deleted symbol_id={old_id}"
+
+
 # -- Helper Functions ---------------------------------------------------------
 
 

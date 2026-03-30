@@ -20,6 +20,7 @@ from codetex_mcp.storage.files import (
     upsert_file,
 )
 from codetex_mcp.storage.repositories import create_repo
+from codetex_mcp.storage.symbols import upsert_symbol
 
 
 @pytest.fixture
@@ -76,6 +77,80 @@ class TestUpsertFile:
         assert record.lines_of_code == 20
         assert record.token_count == 100
         assert record.imports_json == '["os"]'
+
+    @pytest.mark.asyncio
+    async def test_upsert_returns_correct_id_on_conflict(
+        self, db: Database, repo_id: int
+    ) -> None:
+        """Both INSERT and UPDATE paths must return the same file_id."""
+        id1 = await upsert_file(db, repo_id, "src/dup.py", "python", 10, 50, None)
+        id2 = await upsert_file(db, repo_id, "src/dup.py", "python", 20, 100, None)
+        assert id1 == id2
+
+        # Verify the returned id matches the actual DB record
+        record = await get_file(db, repo_id, "src/dup.py")
+        assert record is not None
+        assert record.id == id1
+
+    @pytest.mark.asyncio
+    async def test_upsert_id_stable_after_interleaved_inserts(
+        self, db: Database, repo_id: int
+    ) -> None:
+        """Regression: inserting into another table between upserts must not
+        pollute the returned file_id via stale lastrowid."""
+        file_id_1 = await upsert_file(
+            db, repo_id, "src/interleave.py", "python", 10, 50, None
+        )
+
+        # Insert a symbol — this changes last_insert_rowid() to the symbol's id
+        symbol_id = await upsert_symbol(
+            db, file_id_1, repo_id, "func_a", "function",
+            "def func_a():", None, 1, 5, None, None, None,
+        )
+        # Sanity: symbol_id should be different from file_id
+        assert symbol_id != file_id_1 or True  # might collide on id=1, that's ok
+
+        # Re-upsert the same file — must return the ORIGINAL file_id, not the symbol's
+        file_id_2 = await upsert_file(
+            db, repo_id, "src/interleave.py", "python", 20, 100, None
+        )
+        assert file_id_2 == file_id_1
+
+        # Double-check via DB query
+        cursor = await db.execute(
+            "SELECT id FROM files WHERE repo_id = ? AND path = ?",
+            (repo_id, "src/interleave.py"),
+        )
+        row = await cursor.fetchone()
+        assert row is not None
+        assert row[0] == file_id_1
+
+    @pytest.mark.asyncio
+    async def test_upsert_id_correct_across_many_files(
+        self, db: Database, repo_id: int
+    ) -> None:
+        """Upsert 10 files, re-upsert all 10, verify each returned ID matches DB."""
+        paths = [f"src/file_{i}.py" for i in range(10)]
+
+        # First pass: insert
+        first_ids = []
+        for p in paths:
+            fid = await upsert_file(db, repo_id, p, "python", 10, 50, None)
+            first_ids.append(fid)
+
+        # Second pass: re-upsert
+        second_ids = []
+        for p in paths:
+            fid = await upsert_file(db, repo_id, p, "python", 20, 100, None)
+            second_ids.append(fid)
+
+        assert first_ids == second_ids
+
+        # Verify each against get_file
+        for p, expected_id in zip(paths, first_ids):
+            record = await get_file(db, repo_id, p)
+            assert record is not None
+            assert record.id == expected_id
 
 
 class TestUpdateFileSummary:

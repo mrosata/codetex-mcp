@@ -5,6 +5,8 @@ from pathlib import Path
 import pytest
 import pytest_asyncio
 
+import aiosqlite
+
 from codetex_mcp.exceptions import DatabaseError
 from codetex_mcp.storage.database import Database
 
@@ -244,6 +246,48 @@ class TestMigrate:
             "commit_sha",
             "created_at",
         }
+
+    @pytest.mark.asyncio
+    async def test_fk_enforced_after_executescript_migration(
+        self, db: Database
+    ) -> None:
+        """executescript() implicitly commits and can disable FK enforcement.
+        Verify that PRAGMA foreign_keys remains ON after migration and that
+        FK violations are rejected."""
+        await db.migrate()
+
+        # Confirm FK pragma is still on
+        cursor = await db.execute("PRAGMA foreign_keys")
+        row = await cursor.fetchone()
+        assert row is not None
+        assert row[0] == 1
+
+        # Attempt to insert a file with a non-existent repo_id
+        with pytest.raises(aiosqlite.IntegrityError):
+            await db.execute(
+                "INSERT INTO files (repo_id, path) VALUES (?, ?)",
+                (9999, "orphan.py"),
+            )
+
+    @pytest.mark.asyncio
+    async def test_fk_blocks_invalid_symbol_file_id(self, db: Database) -> None:
+        """Inserting a symbol with a non-existent file_id must raise FK error."""
+        await db.migrate()
+
+        # Insert a valid repo first
+        await db.execute(
+            "INSERT INTO repositories (name, local_path) VALUES (?, ?)",
+            ("test-repo", "/tmp/test"),
+        )
+        await db.conn.commit()
+
+        # Try to insert a symbol with invalid file_id
+        with pytest.raises(aiosqlite.IntegrityError):
+            await db.execute(
+                "INSERT INTO symbols (file_id, repo_id, name, kind, signature, start_line, end_line) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (9999, 1, "bad_func", "function", "def bad_func()", 1, 5),
+            )
 
     @pytest.mark.asyncio
     async def test_foreign_key_cascade(self, db: Database) -> None:
