@@ -1,6 +1,25 @@
 # CHANGELOG
 
 
+## v0.2.3 (2026-03-30)
+
+### Bug Fixes
+
+- Format fix
+  ([`3d80ca1`](https://github.com/mrosata/codetex-mcp/commit/3d80ca1b165cbd328552ba635a8a490a67c13fc0))
+
+### Testing
+
+- Add regression tests for UPSERT lastrowid bug & re-index FK integrity
+  ([`ab91c8f`](https://github.com/mrosata/codetex-mcp/commit/ab91c8faac23ef869e2f0997ac2cb1573288dd7f))
+
+Cover the fixed UPSERT lastrowid behavior (interleaved inserts returning stale IDs), vec0 orphan
+  cleanup ordering, re-index/sync FK constraint safety, and FK enforcement after executescript
+  migration.
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+
+
 ## v0.2.2 (2026-03-30)
 
 ### Bug Fixes
