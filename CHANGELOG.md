@@ -1,6 +1,29 @@
 # CHANGELOG
 
 
+## v0.3.0 (2026-03-30)
+
+### Features
+
+- Add pipeline step progress reporting and timeout protection to CLI
+  ([`012411b`](https://github.com/mrosata/codetex-mcp/commit/012411b7eb567c50656089be36547989bd53d7db))
+
+Index and sync commands now show which pipeline step is running (e.g. "Generating file summaries (25
+  files)...") via animated spinners, so the user always knows the CLI is working. Both commands
+  accept a --timeout flag (default 30 min) to prevent indefinite hangs.
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+
+- Index command auto-delegates to incremental sync when already indexed
+  ([`10c2fa2`](https://github.com/mrosata/codetex-mcp/commit/10c2fa2b3245d8a702998bd414b4cd929b2de511))
+
+Running `codetex index` on an already-indexed repo now uses the incremental sync pipeline (only
+  changed files), avoiding redundant LLM calls and embedding regeneration. Use `--force` to rebuild
+  from scratch when needed.
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+
+
 ## v0.2.3 (2026-03-30)
 
 ### Bug Fixes
