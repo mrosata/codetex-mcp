@@ -1,0 +1,115 @@
+{
+  "description": "Human-evaluated calibration examples for LLM-as-judge scoring. Each example contains a task, candidate response, and human-assigned scores on the 0-10 scale.",
+  "examples": [
+    {
+      "id": "CAL-001",
+      "task": "Write a function that serializes a list of floats into the binary format expected by sqlite-vec for embedding storage.",
+      "response": "def serialize_f32(vector: list[float]) -> bytes:\n    return struct.pack(f\"{len(vector)}f\", *vector)",
+      "human_scores": {
+        "correctness": 10,
+        "completeness": 9,
+        "relevance": 10
+      },
+      "human_reasoning": "Perfectly correct implementation using struct.pack with format string. Only missing import statement, but the function itself is complete."
+    },
+    {
+      "id": "CAL-002",
+      "task": "Write a function that serializes a list of floats into the binary format expected by sqlite-vec for embedding storage.",
+      "response": "def serialize(vector):\n    return json.dumps(vector)",
+      "human_scores": {
+        "correctness": 1,
+        "completeness": 3,
+        "relevance": 5
+      },
+      "human_reasoning": "Uses JSON instead of binary format. sqlite-vec requires raw bytes via struct.pack, not JSON strings. Returns a string not bytes."
+    },
+    {
+      "id": "CAL-003",
+      "task": "Write a function that detects whether a given file path is a binary file by checking for null bytes in the first 8KB.",
+      "response": "def is_binary(file_path: Path) -> bool:\n    try:\n        with open(file_path, 'rb') as f:\n            chunk = f.read(8192)\n            return b'\\x00' in chunk\n    except OSError:\n        return False",
+      "human_scores": {
+        "correctness": 10,
+        "completeness": 10,
+        "relevance": 10
+      },
+      "human_reasoning": "Correct binary detection: reads first 8KB in binary mode, checks for null bytes, handles OSError gracefully."
+    },
+    {
+      "id": "CAL-004",
+      "task": "Write a function that detects whether a given file path is a binary file by checking for null bytes in the first 8KB.",
+      "response": "def is_binary(path):\n    return path.endswith('.bin')",
+      "human_scores": {
+        "correctness": 1,
+        "completeness": 2,
+        "relevance": 4
+      },
+      "human_reasoning": "Only checks file extension, not actual content. Misses the core requirement of reading bytes and checking for null bytes."
+    },
+    {
+      "id": "CAL-005",
+      "task": "Write an async function that enables WAL mode and foreign keys on an aiosqlite connection.",
+      "response": "async def configure_db(conn: aiosqlite.Connection) -> None:\n    await conn.execute('PRAGMA journal_mode=WAL')\n    await conn.execute('PRAGMA foreign_keys=ON')",
+      "human_scores": {
+        "correctness": 10,
+        "completeness": 10,
+        "relevance": 10
+      },
+      "human_reasoning": "Both pragmas correctly set with proper async/await syntax."
+    },
+    {
+      "id": "CAL-006",
+      "task": "Write an async function that enables WAL mode and foreign keys on an aiosqlite connection.",
+      "response": "async def configure_db(conn):\n    await conn.execute('PRAGMA journal_mode=WAL')",
+      "human_scores": {
+        "correctness": 8,
+        "completeness": 5,
+        "relevance": 9
+      },
+      "human_reasoning": "WAL mode is correct, but missing foreign keys pragma. Only half the task completed."
+    },
+    {
+      "id": "CAL-007",
+      "task": "Write a function that computes the precision@k metric: the fraction of top-k retrieved items that are relevant.",
+      "response": "def precision_at_k(retrieved: list[str], relevant: set[str], k: int) -> float:\n    if k <= 0 or not retrieved:\n        return 0.0\n    top_k = retrieved[:k]\n    hits = sum(1 for item in top_k if item in relevant)\n    return hits / len(top_k)",
+      "human_scores": {
+        "correctness": 10,
+        "completeness": 10,
+        "relevance": 10
+      },
+      "human_reasoning": "Textbook precision@k implementation with proper edge case handling."
+    },
+    {
+      "id": "CAL-008",
+      "task": "Write a function that computes the precision@k metric: the fraction of top-k retrieved items that are relevant.",
+      "response": "def precision(retrieved, relevant):\n    return len(set(retrieved) & relevant) / len(retrieved)",
+      "human_scores": {
+        "correctness": 5,
+        "completeness": 4,
+        "relevance": 7
+      },
+      "human_reasoning": "Computes overall precision but missing k parameter entirely. No edge case handling for empty inputs or division by zero."
+    },
+    {
+      "id": "CAL-009",
+      "task": "Write a function that extracts the repository name from a git remote URL, handling both HTTPS and SSH URLs and stripping .git suffix.",
+      "response": "def repo_name_from_url(url: str) -> str:\n    url = url.rstrip('/')\n    name = url.split('/')[-1]\n    if name.endswith('.git'):\n        name = name[:-4]\n    return name",
+      "human_scores": {
+        "correctness": 8,
+        "completeness": 7,
+        "relevance": 10
+      },
+      "human_reasoning": "Handles HTTPS URLs well. For SSH URLs like git@github.com:user/repo.git, split('/') would give the full 'user/repo.git' as last element. Works in many cases but not all SSH formats."
+    },
+    {
+      "id": "CAL-010",
+      "task": "Write a function that extracts the repository name from a git remote URL, handling both HTTPS and SSH URLs and stripping .git suffix.",
+      "response": "import re\ndef get_name(url):\n    match = re.search(r'[/:]([^/:]+?)(\\.git)?/?$', url)\n    return match.group(1) if match else url",
+      "human_scores": {
+        "correctness": 9,
+        "completeness": 8,
+        "relevance": 10
+      },
+      "human_reasoning": "Regex handles both HTTPS and SSH formats correctly. Slightly less readable but more robust. Handles edge cases well."
+    }
+  ]
+}

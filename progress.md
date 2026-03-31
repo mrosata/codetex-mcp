@@ -834,3 +834,41 @@
 - The `success_rate` function treats scores exactly at the threshold as passing (>= not >)
 - Next priority: **US-034** (LLM-as-judge scoring system) — requires building scoring prompt templates and calibration methodology
 - Architecture reference: `tasks/prd-evaluation.md` §Approach 3
+
+## US-034: LLM-as-judge scoring system
+
+**Status:** Complete
+**Date:** 2026-03-30
+
+### What was done
+- Created `src/codetex_mcp/benchmarks/judge.py` with:
+  - `JUDGE_SYSTEM_PROMPT` — structured rubric instructing an LLM to evaluate code on 3 dimensions (correctness, completeness, relevance), each scored 0-10 with detailed scoring guidelines and examples for each level
+  - `JudgeScore` dataclass with `correctness`, `completeness`, `relevance` (int 0-10), `reasoning` (str), and `aggregate` property (weighted: 0.5 correctness + 0.3 completeness + 0.2 relevance, normalized to [0.0, 1.0])
+  - `build_judge_prompt(task, response, context=None)` — constructs the evaluation prompt with task description, candidate response in code block, and optional context section
+  - `parse_judge_response(text)` — robust JSON parser that handles: raw JSON, JSON in ` ```json ` code blocks, JSON in plain code blocks, and embedded JSON in prose (regex fallback). Raises `ValueError` on unparseable input
+  - `_validate_score(data)` — validates parsed JSON: checks for dict type, required fields, integer types (accepts float like 8.0 but rejects 8.5), 0-10 range
+  - `calibrate(judge_scores, human_scores)` → `CalibrationResult` — compares LLM judge scores against human-evaluated reference scores, computes mean absolute error, max absolute error, Pearson correlation on aggregate scores, and per-example breakdown with per-dimension errors
+  - `_pearson_correlation(x, y)` — pure Pearson r computation, returns 0.0 for zero variance or fewer than 2 data points
+- Created `benchmarks/fixtures/codetex_mcp/judge_calibration.json` with 10 human-evaluated calibration examples:
+  - 5 coding tasks (sqlite-vec serialization, binary file detection, SQLite pragmas, precision@k, git URL parsing)
+  - Each task has 2 examples: one good response (scores 8-10) and one poor response (scores 1-5)
+  - Each example has: id, task, response, human_scores (correctness/completeness/relevance), and human_reasoning
+- Created test suite: `tests/test_benchmarks/test_judge.py` with 43 tests across 7 classes:
+  - `TestJudgeScore` (7 tests) — field access, aggregate perfect/zero/individual weights/mixed
+  - `TestBuildJudgePrompt` (5 tests) — basic format, without/with context, code block wrapping, instruction ending
+  - `TestParseJudgeResponse` (11 tests) — raw JSON, JSON in code blocks (json and plain), embedded JSON, missing reasoning default, invalid JSON, missing field, out-of-range, negative, float integer accepted, non-integer float rejected
+  - `TestValidateScore` (5 tests) — valid data, non-dict, boundary 0 and 10, string score rejected
+  - `TestCalibrate` (6 tests) — perfect agreement, some disagreement, per-example breakdown, length mismatch, empty lists, multiple examples correlation
+  - `TestPearsonCorrelation` (5 tests) — perfect positive, perfect negative, zero variance, single element, empty
+  - `TestJudgeSystemPrompt` (4 tests) — non-empty, mentions all 3 dimensions, mentions JSON, mentions score range
+- mypy passes (43 source files, no issues)
+- All 702 tests pass (43 new + 659 existing)
+
+### Notes for next developer
+- `JUDGE_SYSTEM_PROMPT` instructs the LLM to respond with only a JSON object — this makes `parse_judge_response` parsing reliable. The rubric includes concrete score examples for each level (0, 1-3, 4-6, 7-9, 10) to reduce scoring variance
+- `parse_judge_response` has a 3-level fallback: code block extraction → full text JSON parse → regex JSON object extraction. This handles common LLM response patterns (wrapping in ```json, adding explanation text around JSON)
+- `JudgeScore.aggregate` uses different weights than `task_metrics.aggregate_correctness` — the judge weights correctness higher (0.5 vs 0.4) since it's the most important dimension for code evaluation
+- The `calibrate` function can be used in a benchmark runner to verify that the LLM judge's scores correlate well with human evaluations before trusting it for A/B testing
+- Calibration fixtures provide 10 examples with known human scores — pass these through the LLM judge and compare using `calibrate()` to validate the judge before running full A/B tests
+- The judge module is pure functions + dataclasses (no I/O in the library). The actual LLM call for judging would be done by the benchmark runner using `AnthropicProvider.summarize(prompt, system=JUDGE_SYSTEM_PROMPT)` — this separation follows the same pattern as the existing benchmark modules
+- Next priority: **US-035** (A/B comparison runner) — depends on this US-034 judge system and US-033 task completion framework

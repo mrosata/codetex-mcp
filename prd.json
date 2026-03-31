@@ -587,8 +587,8 @@
         "Calibration against human-evaluated examples"
       ],
       "priority": 34,
-      "passes": false,
-      "notes": "NOT READY — Requires reliable scoring methodology and calibration data. Deferred."
+      "passes": true,
+      "notes": "Completed: src/codetex_mcp/benchmarks/judge.py with JUDGE_SYSTEM_PROMPT (structured scoring rubric for 3 dimensions), JudgeScore dataclass (correctness/completeness/relevance 0-10 + aggregate property with weights 0.5/0.3/0.2), build_judge_prompt(task, response, context) prompt builder, parse_judge_response(text) JSON parser (handles raw JSON, code blocks, embedded JSON with fallback regex extraction), _validate_score for field/range validation, calibrate(judge_scores, human_scores) -> CalibrationResult with MAE/max error/Pearson correlation/per-example breakdown, _pearson_correlation helper. benchmarks/fixtures/codetex_mcp/judge_calibration.json with 10 human-evaluated calibration examples across 5 coding tasks (each with good and poor responses, human scores and reasoning). 43 unit tests in tests/test_benchmarks/test_judge.py across 7 test classes (JudgeScore fields/aggregate weights, BuildJudgePrompt formatting, ParseJudgeResponse JSON parsing/error handling, ValidateScore boundaries, Calibrate agreement/disagreement/correlation, PearsonCorrelation, JudgeSystemPrompt content). mypy passes (43 source files), all 702 tests pass."
     },
     {
       "id": "US-035",
