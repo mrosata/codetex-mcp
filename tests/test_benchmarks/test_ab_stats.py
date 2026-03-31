@@ -147,24 +147,18 @@ class TestImprovementPct:
 
 class TestSignificanceSummary:
     def test_significant_improvement(self) -> None:
-        result = significance_summary(
-            t_stat=3.5, p_value=0.01, effect_size=0.8
-        )
+        result = significance_summary(t_stat=3.5, p_value=0.01, effect_size=0.8)
         assert result["significant_at_alpha"] is True
         assert "improvement" in result["interpretation"]
         assert result["effect_size_label"] == "large"
 
     def test_not_significant(self) -> None:
-        result = significance_summary(
-            t_stat=0.5, p_value=0.6, effect_size=0.1
-        )
+        result = significance_summary(t_stat=0.5, p_value=0.6, effect_size=0.1)
         assert result["significant_at_alpha"] is False
         assert "No statistically significant" in result["interpretation"]
 
     def test_significant_degradation(self) -> None:
-        result = significance_summary(
-            t_stat=-3.0, p_value=0.02, effect_size=-0.7
-        )
+        result = significance_summary(t_stat=-3.0, p_value=0.02, effect_size=-0.7)
         assert result["significant_at_alpha"] is True
         assert "degradation" in result["interpretation"]
 
@@ -182,9 +176,7 @@ class TestSignificanceSummary:
         assert significance_summary(0, 1, 1.2)["effect_size_label"] == "large"
 
     def test_all_fields_present(self) -> None:
-        result = significance_summary(
-            t_stat=2.5, p_value=0.03, effect_size=0.7
-        )
+        result = significance_summary(t_stat=2.5, p_value=0.03, effect_size=0.7)
         assert "t_statistic" in result
         assert "p_value" in result
         assert "effect_size_cohens_d" in result

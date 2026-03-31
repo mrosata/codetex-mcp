@@ -26,9 +26,7 @@ def line_coverage(expected_lines: list[str], actual: str) -> float:
     """
     if not expected_lines:
         return 0.0
-    hits = sum(
-        1 for line in expected_lines if line.strip() in actual
-    )
+    hits = sum(1 for line in expected_lines if line.strip() in actual)
     return hits / len(expected_lines)
 
 

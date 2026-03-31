@@ -10,9 +10,7 @@ from __future__ import annotations
 import math
 
 
-def paired_t_test(
-    baseline: list[float], treatment: list[float]
-) -> tuple[float, float]:
+def paired_t_test(baseline: list[float], treatment: list[float]) -> tuple[float, float]:
     """Compute paired t-test statistic and two-tailed p-value.
 
     Tests whether the mean difference between paired observations
@@ -90,9 +88,7 @@ def cohens_d(baseline: list[float], treatment: list[float]) -> float:
     return mean_diff / pooled_sd
 
 
-def mean_improvement(
-    baseline: list[float], treatment: list[float]
-) -> float:
+def mean_improvement(baseline: list[float], treatment: list[float]) -> float:
     """Compute the mean improvement (treatment - baseline).
 
     Args:
@@ -157,9 +153,7 @@ def significance_summary(
             f"with {effect_label} effect size (d={effect_size:.3f})"
         )
     else:
-        interpretation = (
-            f"No statistically significant difference (p={p_value:.4f})"
-        )
+        interpretation = f"No statistically significant difference (p={p_value:.4f})"
 
     return {
         "t_statistic": round(t_stat, 4),
@@ -243,11 +237,7 @@ def _regularized_incomplete_beta(x: float, a: float, b: float) -> float:
         return 1.0 - _regularized_incomplete_beta(1.0 - x, b, a)
 
     # Log of the prefix: x^a * (1-x)^b / (a * Beta(a, b))
-    ln_prefix = (
-        a * math.log(x) + b * math.log(1.0 - x)
-        - math.log(a)
-        - _log_beta(a, b)
-    )
+    ln_prefix = a * math.log(x) + b * math.log(1.0 - x) - math.log(a) - _log_beta(a, b)
     prefix = math.exp(ln_prefix)
 
     # Continued fraction (Lentz's method)

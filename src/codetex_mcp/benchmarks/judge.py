@@ -161,7 +161,9 @@ def _validate_score(data: Any) -> JudgeScore:
         if isinstance(val, float) and val == int(val):
             val = int(val)
         if not isinstance(val, int):
-            raise ValueError(f"Field '{field}' must be an integer, got {type(val).__name__}")
+            raise ValueError(
+                f"Field '{field}' must be an integer, got {type(val).__name__}"
+            )
         if val < 0 or val > 10:
             raise ValueError(f"Field '{field}' must be 0-10, got {val}")
         scores[field] = val

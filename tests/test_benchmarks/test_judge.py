@@ -7,7 +7,6 @@ import json
 import pytest
 
 from codetex_mcp.benchmarks.judge import (
-    CalibrationResult,
     JudgeScore,
     build_judge_prompt,
     calibrate,
@@ -76,17 +75,21 @@ class TestBuildJudgePrompt:
 
     def test_ends_with_instruction(self) -> None:
         prompt = build_judge_prompt("task", "response")
-        assert prompt.endswith("Evaluate the candidate response and return the JSON score object.")
+        assert prompt.endswith(
+            "Evaluate the candidate response and return the JSON score object."
+        )
 
 
 class TestParseJudgeResponse:
     def test_parse_raw_json(self) -> None:
-        text = json.dumps({
-            "correctness": 8,
-            "completeness": 7,
-            "relevance": 9,
-            "reasoning": "Good implementation",
-        })
+        text = json.dumps(
+            {
+                "correctness": 8,
+                "completeness": 7,
+                "relevance": 9,
+                "reasoning": "Good implementation",
+            }
+        )
         score = parse_judge_response(text)
         assert score.correctness == 8
         assert score.completeness == 7
@@ -124,42 +127,50 @@ class TestParseJudgeResponse:
             parse_judge_response(text)
 
     def test_score_out_of_range_raises(self) -> None:
-        text = json.dumps({
-            "correctness": 11,
-            "completeness": 5,
-            "relevance": 5,
-            "reasoning": "",
-        })
+        text = json.dumps(
+            {
+                "correctness": 11,
+                "completeness": 5,
+                "relevance": 5,
+                "reasoning": "",
+            }
+        )
         with pytest.raises(ValueError, match="must be 0-10"):
             parse_judge_response(text)
 
     def test_negative_score_raises(self) -> None:
-        text = json.dumps({
-            "correctness": -1,
-            "completeness": 5,
-            "relevance": 5,
-            "reasoning": "",
-        })
+        text = json.dumps(
+            {
+                "correctness": -1,
+                "completeness": 5,
+                "relevance": 5,
+                "reasoning": "",
+            }
+        )
         with pytest.raises(ValueError, match="must be 0-10"):
             parse_judge_response(text)
 
     def test_float_integer_accepted(self) -> None:
-        text = json.dumps({
-            "correctness": 8.0,
-            "completeness": 7.0,
-            "relevance": 9.0,
-            "reasoning": "",
-        })
+        text = json.dumps(
+            {
+                "correctness": 8.0,
+                "completeness": 7.0,
+                "relevance": 9.0,
+                "reasoning": "",
+            }
+        )
         score = parse_judge_response(text)
         assert score.correctness == 8
 
     def test_non_integer_float_rejected(self) -> None:
-        text = json.dumps({
-            "correctness": 8.5,
-            "completeness": 7,
-            "relevance": 9,
-            "reasoning": "",
-        })
+        text = json.dumps(
+            {
+                "correctness": 8.5,
+                "completeness": 7,
+                "relevance": 9,
+                "reasoning": "",
+            }
+        )
         with pytest.raises(ValueError, match="must be an integer"):
             parse_judge_response(text)
 

@@ -572,7 +572,7 @@ class TestStepCallback:
         repo_record: Repository,
     ) -> None:
         steps: list[str] = []
-        result = await indexer.index(repo_record, on_step=steps.append)
+        await indexer.index(repo_record, on_step=steps.append)
 
         assert len(steps) == 7
         assert "Discovering files" in steps[0]
