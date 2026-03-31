@@ -74,6 +74,11 @@ dev = [
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.pytest.ini_options]
+markers = [
+    "benchmark: marks tests as benchmarks (deselect with '-m \"not benchmark\"')",
+]
+
 [tool.semantic_release]
 version_toml = ["pyproject.toml:project.version"]
 branch = "main"

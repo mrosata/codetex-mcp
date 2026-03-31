@@ -1,0 +1,252 @@
+{
+  "repo": "codetex-mcp",
+  "repo_path": ".",
+  "queries": [
+    {
+      "id": "RQ-001",
+      "query": "semantic search over embeddings",
+      "description": "Find code related to vector similarity search",
+      "expected_files": [
+        "src/codetex_mcp/core/search_engine.py",
+        "src/codetex_mcp/storage/vectors.py",
+        "src/codetex_mcp/embeddings/embedder.py"
+      ],
+      "expected_symbols": [
+        "SearchEngine.search",
+        "search_file_embeddings",
+        "search_symbol_embeddings"
+      ],
+      "k": 10
+    },
+    {
+      "id": "RQ-002",
+      "query": "how does the indexing pipeline work",
+      "description": "Find code that orchestrates the full indexing pipeline",
+      "expected_files": [
+        "src/codetex_mcp/core/indexer.py"
+      ],
+      "expected_symbols": [
+        "Indexer.index",
+        "IndexResult"
+      ],
+      "k": 10
+    },
+    {
+      "id": "RQ-003",
+      "query": "tree-sitter AST parsing",
+      "description": "Find code related to tree-sitter-based code parsing",
+      "expected_files": [
+        "src/codetex_mcp/analysis/tree_sitter.py",
+        "src/codetex_mcp/analysis/parser.py"
+      ],
+      "expected_symbols": [
+        "TreeSitterParser.parse",
+        "Parser.parse_file"
+      ],
+      "k": 10
+    },
+    {
+      "id": "RQ-004",
+      "query": "SQLite database migration",
+      "description": "Find code related to database setup and migrations",
+      "expected_files": [
+        "src/codetex_mcp/storage/database.py"
+      ],
+      "expected_symbols": [
+        "Database.migrate",
+        "Database.connect"
+      ],
+      "k": 10
+    },
+    {
+      "id": "RQ-005",
+      "query": "repository management clone register",
+      "description": "Find code for managing repositories (add, remove, list)",
+      "expected_files": [
+        "src/codetex_mcp/core/repo_manager.py",
+        "src/codetex_mcp/storage/repositories.py"
+      ],
+      "expected_symbols": [
+        "RepoManager.add_remote",
+        "RepoManager.add_local",
+        "create_repo"
+      ],
+      "k": 10
+    },
+    {
+      "id": "RQ-006",
+      "query": "LLM summarization with rate limiting",
+      "description": "Find code related to LLM API calls and rate limiting",
+      "expected_files": [
+        "src/codetex_mcp/llm/provider.py",
+        "src/codetex_mcp/llm/rate_limiter.py"
+      ],
+      "expected_symbols": [
+        "AnthropicProvider.summarize",
+        "RateLimiter.acquire"
+      ],
+      "k": 10
+    },
+    {
+      "id": "RQ-007",
+      "query": "configuration settings TOML loading",
+      "description": "Find code related to configuration management",
+      "expected_files": [
+        "src/codetex_mcp/config/settings.py"
+      ],
+      "expected_symbols": [
+        "Settings.load"
+      ],
+      "k": 10
+    },
+    {
+      "id": "RQ-008",
+      "query": "file exclusion gitignore filter",
+      "description": "Find code for filtering out excluded files",
+      "expected_files": [
+        "src/codetex_mcp/config/ignore.py"
+      ],
+      "expected_symbols": [
+        "IgnoreFilter.is_excluded",
+        "IgnoreFilter.filter_files"
+      ],
+      "k": 10
+    },
+    {
+      "id": "RQ-009",
+      "query": "incremental sync git diff",
+      "description": "Find code for incremental sync based on git diff",
+      "expected_files": [
+        "src/codetex_mcp/core/syncer.py",
+        "src/codetex_mcp/git/operations.py"
+      ],
+      "expected_symbols": [
+        "Syncer.sync",
+        "GitOperations.diff_commits"
+      ],
+      "k": 10
+    },
+    {
+      "id": "RQ-010",
+      "query": "MCP server tool registration",
+      "description": "Find code for the MCP server and its tool definitions",
+      "expected_files": [
+        "src/codetex_mcp/server/mcp_server.py"
+      ],
+      "expected_symbols": [
+        "get_repo_overview",
+        "search_context"
+      ],
+      "k": 10
+    },
+    {
+      "id": "RQ-011",
+      "query": "context retrieval tiered overview",
+      "description": "Find code for retrieving indexed context at different tiers",
+      "expected_files": [
+        "src/codetex_mcp/core/context_store.py"
+      ],
+      "expected_symbols": [
+        "ContextStore.get_repo_overview",
+        "ContextStore.get_file_context",
+        "ContextStore.get_symbol_detail"
+      ],
+      "k": 10
+    },
+    {
+      "id": "RQ-012",
+      "query": "embedding generation sentence transformers",
+      "description": "Find code for generating text embeddings",
+      "expected_files": [
+        "src/codetex_mcp/embeddings/embedder.py"
+      ],
+      "expected_symbols": [
+        "Embedder.embed",
+        "Embedder.embed_batch"
+      ],
+      "k": 10
+    },
+    {
+      "id": "RQ-013",
+      "query": "CLI typer command",
+      "description": "Find CLI command implementations",
+      "expected_files": [
+        "src/codetex_mcp/cli/app.py"
+      ],
+      "expected_symbols": [
+        "index",
+        "sync",
+        "context"
+      ],
+      "k": 10
+    },
+    {
+      "id": "RQ-014",
+      "query": "error handling exception hierarchy",
+      "description": "Find the exception class definitions",
+      "expected_files": [
+        "src/codetex_mcp/exceptions.py"
+      ],
+      "expected_symbols": [
+        "CodetexError",
+        "GitError",
+        "LLMError"
+      ],
+      "k": 10
+    },
+    {
+      "id": "RQ-015",
+      "query": "file and symbol storage upsert",
+      "description": "Find code for persisting parsed file and symbol data",
+      "expected_files": [
+        "src/codetex_mcp/storage/files.py",
+        "src/codetex_mcp/storage/symbols.py"
+      ],
+      "expected_symbols": [
+        "upsert_file",
+        "upsert_symbol",
+        "update_file_summary"
+      ],
+      "k": 10
+    },
+    {
+      "id": "RQ-016",
+      "query": "LLM prompt templates tier summarization",
+      "description": "Find prompt templates used for LLM-based summarization",
+      "expected_files": [
+        "src/codetex_mcp/llm/prompts.py"
+      ],
+      "expected_symbols": [
+        "tier1_prompt",
+        "tier2_prompt",
+        "tier3_prompt"
+      ],
+      "k": 10
+    },
+    {
+      "id": "RQ-017",
+      "query": "regex fallback parser import extraction",
+      "description": "Find the fallback parser for languages without tree-sitter",
+      "expected_files": [
+        "src/codetex_mcp/analysis/fallback_parser.py"
+      ],
+      "expected_symbols": [
+        "FallbackParser.parse"
+      ],
+      "k": 10
+    },
+    {
+      "id": "RQ-018",
+      "query": "application wiring dependency injection",
+      "description": "Find the app factory that wires all components together",
+      "expected_files": [
+        "src/codetex_mcp/core/__init__.py"
+      ],
+      "expected_symbols": [
+        "create_app",
+        "AppContext"
+      ],
+      "k": 10
+    }
+  ]
+}

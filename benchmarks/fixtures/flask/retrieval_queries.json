@@ -1,0 +1,138 @@
+{
+  "repo": "flask",
+  "repo_path": "",
+  "queries": [
+    {
+      "id": "RQ-F01",
+      "query": "request routing URL dispatch",
+      "description": "Find code related to URL routing and dispatching",
+      "expected_files": [
+        "src/flask/app.py",
+        "src/flask/wrappers.py"
+      ],
+      "expected_symbols": [
+        "Flask.route",
+        "Flask.add_url_rule"
+      ],
+      "k": 10
+    },
+    {
+      "id": "RQ-F02",
+      "query": "template rendering jinja",
+      "description": "Find code related to Jinja2 template rendering",
+      "expected_files": [
+        "src/flask/templating.py"
+      ],
+      "expected_symbols": [
+        "render_template",
+        "render_template_string"
+      ],
+      "k": 10
+    },
+    {
+      "id": "RQ-F03",
+      "query": "error handler exception",
+      "description": "Find error handling and exception registration",
+      "expected_files": [
+        "src/flask/app.py"
+      ],
+      "expected_symbols": [
+        "Flask.errorhandler",
+        "Flask.handle_exception"
+      ],
+      "k": 10
+    },
+    {
+      "id": "RQ-F04",
+      "query": "blueprint modular application",
+      "description": "Find blueprint registration and modular app structure",
+      "expected_files": [
+        "src/flask/blueprints.py"
+      ],
+      "expected_symbols": [
+        "Blueprint",
+        "Blueprint.register"
+      ],
+      "k": 10
+    },
+    {
+      "id": "RQ-F05",
+      "query": "session cookie management",
+      "description": "Find session and cookie handling code",
+      "expected_files": [
+        "src/flask/sessions.py"
+      ],
+      "expected_symbols": [
+        "SecureCookieSessionInterface",
+        "SecureCookieSession"
+      ],
+      "k": 10
+    },
+    {
+      "id": "RQ-F06",
+      "query": "application context request context",
+      "description": "Find application and request context management",
+      "expected_files": [
+        "src/flask/ctx.py",
+        "src/flask/globals.py"
+      ],
+      "expected_symbols": [
+        "AppContext",
+        "RequestContext"
+      ],
+      "k": 10
+    },
+    {
+      "id": "RQ-F07",
+      "query": "configuration from file environment",
+      "description": "Find configuration loading mechanisms",
+      "expected_files": [
+        "src/flask/config.py"
+      ],
+      "expected_symbols": [
+        "Config",
+        "Config.from_object"
+      ],
+      "k": 10
+    },
+    {
+      "id": "RQ-F08",
+      "query": "test client testing",
+      "description": "Find test client and testing utilities",
+      "expected_files": [
+        "src/flask/testing.py"
+      ],
+      "expected_symbols": [
+        "FlaskClient",
+        "FlaskCliRunner"
+      ],
+      "k": 10
+    },
+    {
+      "id": "RQ-F09",
+      "query": "JSON response serialization",
+      "description": "Find JSON handling and response serialization",
+      "expected_files": [
+        "src/flask/json/__init__.py",
+        "src/flask/json/provider.py"
+      ],
+      "expected_symbols": [
+        "jsonify"
+      ],
+      "k": 10
+    },
+    {
+      "id": "RQ-F10",
+      "query": "CLI command click",
+      "description": "Find CLI integration with Click",
+      "expected_files": [
+        "src/flask/cli.py"
+      ],
+      "expected_symbols": [
+        "FlaskGroup",
+        "run_command"
+      ],
+      "k": 10
+    }
+  ]
+}

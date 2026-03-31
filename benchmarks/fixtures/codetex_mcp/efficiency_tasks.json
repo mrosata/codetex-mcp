@@ -1,0 +1,178 @@
+{
+  "repo": "codetex-mcp",
+  "repo_path": ".",
+  "tasks": [
+    {
+      "id": "ET-001",
+      "task": "How does the indexing pipeline work?",
+      "description": "Understand the full 9-step indexing pipeline",
+      "relevant_files": [
+        "src/codetex_mcp/core/indexer.py"
+      ],
+      "relevant_symbols": [
+        "Indexer.index",
+        "IndexResult",
+        "_FileWork",
+        "_store_structure"
+      ]
+    },
+    {
+      "id": "ET-002",
+      "task": "How does semantic search work?",
+      "description": "Understand the search flow from query to results",
+      "relevant_files": [
+        "src/codetex_mcp/core/search_engine.py",
+        "src/codetex_mcp/storage/vectors.py",
+        "src/codetex_mcp/embeddings/embedder.py"
+      ],
+      "relevant_symbols": [
+        "SearchEngine.search",
+        "search_file_embeddings",
+        "search_symbol_embeddings",
+        "Embedder.embed"
+      ]
+    },
+    {
+      "id": "ET-003",
+      "task": "How does the incremental sync detect and process changes?",
+      "description": "Understand git diff-based sync pipeline",
+      "relevant_files": [
+        "src/codetex_mcp/core/syncer.py",
+        "src/codetex_mcp/git/operations.py"
+      ],
+      "relevant_symbols": [
+        "Syncer.sync",
+        "SyncResult",
+        "DiffResult",
+        "GitOperations.diff_commits"
+      ]
+    },
+    {
+      "id": "ET-004",
+      "task": "How are files parsed and analyzed?",
+      "description": "Understand the analysis pipeline with tree-sitter and fallback",
+      "relevant_files": [
+        "src/codetex_mcp/analysis/parser.py",
+        "src/codetex_mcp/analysis/tree_sitter.py",
+        "src/codetex_mcp/analysis/fallback_parser.py"
+      ],
+      "relevant_symbols": [
+        "Parser.parse_file",
+        "TreeSitterParser.parse",
+        "FallbackParser.parse",
+        "FileAnalysis"
+      ]
+    },
+    {
+      "id": "ET-005",
+      "task": "How does the database schema and migration system work?",
+      "description": "Understand database setup, tables, and migration runner",
+      "relevant_files": [
+        "src/codetex_mcp/storage/database.py"
+      ],
+      "relevant_symbols": [
+        "Database.connect",
+        "Database.migrate",
+        "Database.execute"
+      ]
+    },
+    {
+      "id": "ET-006",
+      "task": "How does the MCP server expose tools?",
+      "description": "Understand MCP server tool registration and request handling",
+      "relevant_files": [
+        "src/codetex_mcp/server/mcp_server.py"
+      ],
+      "relevant_symbols": [
+        "get_repo_overview",
+        "get_file_context",
+        "search_context",
+        "sync_repo"
+      ]
+    },
+    {
+      "id": "ET-007",
+      "task": "How are LLM calls managed with rate limiting?",
+      "description": "Understand the LLM provider and rate limiting mechanism",
+      "relevant_files": [
+        "src/codetex_mcp/llm/provider.py",
+        "src/codetex_mcp/llm/rate_limiter.py"
+      ],
+      "relevant_symbols": [
+        "AnthropicProvider.summarize",
+        "AnthropicProvider.summarize_batch",
+        "RateLimiter.acquire",
+        "RateLimiter.handle_rate_limit"
+      ]
+    },
+    {
+      "id": "ET-008",
+      "task": "How is the application wired together?",
+      "description": "Understand the dependency injection and app factory pattern",
+      "relevant_files": [
+        "src/codetex_mcp/core/__init__.py"
+      ],
+      "relevant_symbols": [
+        "AppContext",
+        "create_app"
+      ]
+    },
+    {
+      "id": "ET-009",
+      "task": "How does the file exclusion system work?",
+      "description": "Understand gitignore, codetexignore, and default exclude filters",
+      "relevant_files": [
+        "src/codetex_mcp/config/ignore.py",
+        "src/codetex_mcp/config/settings.py"
+      ],
+      "relevant_symbols": [
+        "IgnoreFilter.is_excluded",
+        "IgnoreFilter.filter_files",
+        "Settings"
+      ]
+    },
+    {
+      "id": "ET-010",
+      "task": "How does the CLI handle user commands?",
+      "description": "Understand Typer command registration and async bridging",
+      "relevant_files": [
+        "src/codetex_mcp/cli/app.py"
+      ],
+      "relevant_symbols": [
+        "index",
+        "sync",
+        "context",
+        "main"
+      ]
+    },
+    {
+      "id": "ET-011",
+      "task": "How are embeddings stored and queried in sqlite-vec?",
+      "description": "Understand vector storage and nearest-neighbor search",
+      "relevant_files": [
+        "src/codetex_mcp/storage/vectors.py"
+      ],
+      "relevant_symbols": [
+        "upsert_file_embedding",
+        "upsert_symbol_embedding",
+        "search_file_embeddings",
+        "_serialize_f32"
+      ]
+    },
+    {
+      "id": "ET-012",
+      "task": "How does the context store serve tiered information?",
+      "description": "Understand Tier 1/2/3 context retrieval from the database",
+      "relevant_files": [
+        "src/codetex_mcp/core/context_store.py"
+      ],
+      "relevant_symbols": [
+        "ContextStore.get_repo_overview",
+        "ContextStore.get_file_context",
+        "ContextStore.get_symbol_detail",
+        "FileContext",
+        "SymbolDetail"
+      ]
+    }
+  ]
+}

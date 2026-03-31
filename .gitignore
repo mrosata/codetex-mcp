@@ -10,3 +10,4 @@ build/
 *.sqlite3
 .coverage
 .DS_Store
+benchmarks/results/*.json

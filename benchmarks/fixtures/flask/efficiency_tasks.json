@@ -1,0 +1,115 @@
+{
+  "repo": "flask",
+  "repo_path": "",
+  "tasks": [
+    {
+      "id": "ET-F01",
+      "task": "How does Flask route requests?",
+      "description": "Understand URL routing and dispatch mechanism",
+      "relevant_files": [
+        "src/flask/app.py",
+        "src/flask/wrappers.py"
+      ],
+      "relevant_symbols": [
+        "Flask.route",
+        "Flask.add_url_rule",
+        "Flask.dispatch_request",
+        "Flask.full_dispatch_request"
+      ]
+    },
+    {
+      "id": "ET-F02",
+      "task": "How does Flask render templates?",
+      "description": "Understand Jinja2 template rendering pipeline",
+      "relevant_files": [
+        "src/flask/templating.py"
+      ],
+      "relevant_symbols": [
+        "render_template",
+        "render_template_string",
+        "Environment"
+      ]
+    },
+    {
+      "id": "ET-F03",
+      "task": "How does the Blueprint system work?",
+      "description": "Understand blueprint registration and modular app structure",
+      "relevant_files": [
+        "src/flask/blueprints.py",
+        "src/flask/scaffold.py"
+      ],
+      "relevant_symbols": [
+        "Blueprint",
+        "Blueprint.register",
+        "Scaffold"
+      ]
+    },
+    {
+      "id": "ET-F04",
+      "task": "How does Flask manage request context?",
+      "description": "Understand application and request context lifecycle",
+      "relevant_files": [
+        "src/flask/ctx.py",
+        "src/flask/globals.py"
+      ],
+      "relevant_symbols": [
+        "AppContext",
+        "RequestContext",
+        "current_app",
+        "request"
+      ]
+    },
+    {
+      "id": "ET-F05",
+      "task": "How does session management work?",
+      "description": "Understand cookie-based session implementation",
+      "relevant_files": [
+        "src/flask/sessions.py"
+      ],
+      "relevant_symbols": [
+        "SecureCookieSessionInterface",
+        "SecureCookieSession",
+        "SessionInterface"
+      ]
+    },
+    {
+      "id": "ET-F06",
+      "task": "How does Flask handle errors?",
+      "description": "Understand error handler registration and exception handling",
+      "relevant_files": [
+        "src/flask/app.py"
+      ],
+      "relevant_symbols": [
+        "Flask.errorhandler",
+        "Flask.handle_exception",
+        "Flask.handle_http_exception"
+      ]
+    },
+    {
+      "id": "ET-F07",
+      "task": "How does Flask configuration work?",
+      "description": "Understand configuration loading and override mechanisms",
+      "relevant_files": [
+        "src/flask/config.py"
+      ],
+      "relevant_symbols": [
+        "Config",
+        "Config.from_object",
+        "Config.from_pyfile",
+        "Config.from_mapping"
+      ]
+    },
+    {
+      "id": "ET-F08",
+      "task": "How does the test client work?",
+      "description": "Understand Flask test client for testing applications",
+      "relevant_files": [
+        "src/flask/testing.py"
+      ],
+      "relevant_symbols": [
+        "FlaskClient",
+        "FlaskCliRunner"
+      ]
+    }
+  ]
+}

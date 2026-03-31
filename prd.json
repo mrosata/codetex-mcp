@@ -381,6 +381,227 @@
       "priority": 20,
       "passes": true,
       "notes": "Reference architecture doc §3.2 and §6 for tool signatures and response shapes. Completed: server/mcp_server.py with FastMCP('codetex') server and 7 registered tools. Module-level _app_ctx with lazy initialization via _get_ctx() calling create_app() once. get_repo_overview(repo_name) returns Tier 1 markdown overview or raises NoIndexError. get_file_context(repo_name, file_path) returns Tier 2 file summary (heading, summary, role, LOC, tokens, symbols list). get_symbol_detail(repo_name, symbol_name) returns Tier 3 symbol detail (signature, file:line, summary, parameters, return type, calls). search_context(repo_name, query, max_results=10) returns ranked markdown table of search results. get_repo_status(repo_name) returns status with indexed commit, current HEAD, staleness, file/symbol counts, total tokens, last indexed time. sync_repo(repo_name) triggers incremental sync and returns change summary or 'Already up to date'. list_repos() returns markdown table of all registered repos. All tools return structured markdown strings for LLM consumption. Errors raise ValueError which FastMCP wraps as ToolError with isError=True and descriptive messages. Server uses stdio transport via server.run(). AppContext created once and reused across all tool calls. 22 tests across 9 classes covering create_server (name, tool registration), get_repo_overview (overview/no-index/not-found), get_file_context (full/not-found), get_symbol_detail (full/not-found), search_context (results/empty/max_results), get_repo_status (normal/stale/not-indexed), sync_repo (changes/already-current/no-index), list_repos (repos/empty), _get_ctx (create/reuse). mypy passes (36 source files), all 504 tests pass."
+    },
+    {
+      "id": "US-021",
+      "title": "IR metrics library (precision@k, recall@k, MRR, nDCG)",
+      "description": "As a developer, I need pure-function IR metric calculations so that retrieval benchmarks can measure search quality with standard information retrieval metrics.",
+      "acceptanceCriteria": [
+        "src/codetex_mcp/benchmarks/metrics.py provides: precision_at_k(retrieved, relevant, k), recall_at_k(retrieved, relevant, k), mean_reciprocal_rank(retrieved, relevant), ndcg_at_k(retrieved, relevant, k)",
+        "All functions are pure (no I/O, no side effects), take list[str] retrieved and set[str] relevant",
+        "Edge cases handled: empty inputs return 0.0, k=0 returns 0.0",
+        "nDCG uses binary relevance with log2 discounting",
+        "Unit tests cover: all relevant, none relevant, partial, edge cases (empty, k=0, k > list length)",
+        "Typecheck passes"
+      ],
+      "priority": 21,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-022",
+      "title": "Baseline search implementations (grep keyword search)",
+      "description": "As a developer, I need grep-based keyword search as a naive baseline so that retrieval benchmarks can compare semantic search against simple text matching.",
+      "acceptanceCriteria": [
+        "src/codetex_mcp/benchmarks/baselines.py provides: grep_search(repo_path, query, max_results) returning list[str] of relative file paths",
+        "Splits query into keywords, greps for each, ranks files by hit count",
+        "Returns relative paths sorted by match count descending",
+        "Handles timeouts and missing grep gracefully",
+        "Unit tests verify: finds matching files, returns relative paths, respects max_results, handles empty query",
+        "Typecheck passes"
+      ],
+      "priority": 22,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-023",
+      "title": "Retrieval ground truth fixtures — dogfood (codetex-mcp)",
+      "description": "As a developer, I need curated retrieval ground truth for codetex-mcp's own codebase so that benchmarks can measure search quality against known-correct answers.",
+      "acceptanceCriteria": [
+        "benchmarks/fixtures/codetex_mcp/retrieval_queries.json contains 15+ curated queries",
+        "Each query has: id, query text, description, expected_files, expected_symbols, k",
+        "Expected files use correct relative paths matching the actual codebase",
+        "Queries cover diverse aspects: search, indexing, parsing, storage, LLM, config, CLI, MCP"
+      ],
+      "priority": 23,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-024",
+      "title": "Retrieval benchmark runner",
+      "description": "As a developer, I need a pytest-based benchmark runner that evaluates retrieval quality against ground truth fixtures and writes structured JSON results.",
+      "acceptanceCriteria": [
+        "benchmarks/test_retrieval_bench.py runs grep baseline against all queries in fixture",
+        "Computes precision@5, precision@10, recall@5, recall@10, MRR, nDCG@10 per query",
+        "Aggregates means across all queries",
+        "Writes results JSON to benchmarks/results/ via report.write_report()",
+        "Tests use @pytest.mark.benchmark marker",
+        "Skips gracefully if fixture file is missing"
+      ],
+      "priority": 24,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-025",
+      "title": "Retrieval ground truth fixtures — second OSS repo",
+      "description": "As a developer, I need retrieval ground truth for a second OSS repo (Flask) so that benchmarks can validate across different codebases.",
+      "acceptanceCriteria": [
+        "benchmarks/fixtures/flask/retrieval_queries.json contains 10+ curated queries",
+        "Each query has: id, query text, description, expected_files, expected_symbols, k",
+        "Queries cover Flask-specific concepts: routing, templates, blueprints, sessions, context"
+      ],
+      "priority": 25,
+      "passes": true,
+      "notes": "Flask fixtures have repo_path set to empty string — must be configured locally to point to a Flask clone."
+    },
+    {
+      "id": "US-026",
+      "title": "Token efficiency metrics library (compression, coverage, density)",
+      "description": "As a developer, I need token efficiency metric calculations so that benchmarks can measure context compression and information density.",
+      "acceptanceCriteria": [
+        "src/codetex_mcp/benchmarks/token_metrics.py provides: count_tokens(text), compression_ratio(baseline, compressed), coverage_score(content, gold_symbols), token_density(relevant, total)",
+        "count_tokens uses tiktoken cl100k_base encoding",
+        "coverage_score does case-insensitive substring matching",
+        "All functions handle edge cases (empty input, zero denominators) returning 0.0",
+        "Unit tests cover all functions including edge cases",
+        "Typecheck passes"
+      ],
+      "priority": 26,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-027",
+      "title": "Baseline context implementations (raw file dump, grep context)",
+      "description": "As a developer, I need naive baseline context generators so that efficiency benchmarks can compare codetex's tiered context against full file dumps and grep output.",
+      "acceptanceCriteria": [
+        "src/codetex_mcp/benchmarks/baselines.py provides: raw_file_context(repo_path, file_paths) and grep_context(repo_path, query, context_lines)",
+        "raw_file_context concatenates full file contents with path headers",
+        "grep_context runs grep with surrounding context lines",
+        "Both handle missing files and timeouts gracefully",
+        "Unit tests verify output format, missing file handling, empty inputs",
+        "Typecheck passes"
+      ],
+      "priority": 27,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-028",
+      "title": "Efficiency ground truth fixtures — dogfood (codetex-mcp)",
+      "description": "As a developer, I need curated efficiency ground truth for codetex-mcp so that benchmarks can measure context compression against known-relevant files and symbols.",
+      "acceptanceCriteria": [
+        "benchmarks/fixtures/codetex_mcp/efficiency_tasks.json contains 10+ curated tasks",
+        "Each task has: id, task description, relevant_files, relevant_symbols",
+        "Tasks cover diverse aspects of the codebase",
+        "File paths and symbol names match the actual codebase"
+      ],
+      "priority": 28,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-029",
+      "title": "Context efficiency benchmark runner",
+      "description": "As a developer, I need a pytest-based benchmark runner that evaluates context efficiency against ground truth fixtures and writes structured JSON results.",
+      "acceptanceCriteria": [
+        "benchmarks/test_efficiency_bench.py computes token counts for raw file dumps and simulated codetex context",
+        "Computes compression ratio, coverage score, and token density per task",
+        "Aggregates means across all tasks",
+        "Writes results JSON to benchmarks/results/",
+        "Tests use @pytest.mark.benchmark marker",
+        "Skips gracefully if fixture file is missing"
+      ],
+      "priority": 29,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-030",
+      "title": "Efficiency ground truth fixtures — second OSS repo",
+      "description": "As a developer, I need efficiency ground truth for a second OSS repo (Flask) so that benchmarks can validate across different codebases.",
+      "acceptanceCriteria": [
+        "benchmarks/fixtures/flask/efficiency_tasks.json contains 8+ curated tasks",
+        "Each task has: id, task description, relevant_files, relevant_symbols",
+        "Tasks cover Flask-specific concepts"
+      ],
+      "priority": 30,
+      "passes": true,
+      "notes": "Flask fixtures have repo_path set to empty string — must be configured locally to point to a Flask clone."
+    },
+    {
+      "id": "US-031",
+      "title": "Benchmark report writer (JSON output with git SHA, timestamps)",
+      "description": "As a developer, I need a structured JSON report writer so that benchmark results can be tracked over time with proper metadata.",
+      "acceptanceCriteria": [
+        "src/codetex_mcp/benchmarks/report.py provides: get_git_sha() and write_report(results_dir, approach, metrics, per_query)",
+        "write_report creates JSON file with timestamp, git SHA, approach name, metrics dict, optional per_query list",
+        "Filename includes timestamp and approach name for sorting",
+        "Creates results directory if it doesn't exist",
+        "get_git_sha returns 'unknown' if not in a git repo",
+        "Unit tests verify file creation, content structure, directory creation, SHA retrieval",
+        "Typecheck passes"
+      ],
+      "priority": 31,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-032",
+      "title": "Benchmark documentation and project configuration",
+      "description": "As a developer, I need benchmark documentation, pytest markers, and gitignore configuration so that the benchmark framework is properly integrated into the project.",
+      "acceptanceCriteria": [
+        "benchmarks/README.md documents: approaches, how to run, result format, how to add test cases, how to interpret metrics",
+        "pyproject.toml has [tool.pytest.ini_options] markers = ['benchmark'] for benchmark marker registration",
+        ".gitignore includes benchmarks/results/*.json",
+        "benchmarks/results/.gitkeep exists for empty directory tracking",
+        "benchmarks/conftest.py provides shared fixtures (load_fixture, results_dir)"
+      ],
+      "priority": 32,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-033",
+      "title": "Task completion evaluation framework",
+      "description": "As a developer, I need a framework for evaluating whether codetex context improves LLM task completion accuracy.",
+      "acceptanceCriteria": [
+        "Define coding tasks with verifiable correct answers",
+        "Framework supports running tasks with and without codetex context",
+        "Results include correctness scores per task"
+      ],
+      "priority": 33,
+      "passes": false,
+      "notes": "NOT READY — Requires LLM API calls (expensive). Deferred until approaches 1+2 establish baselines."
+    },
+    {
+      "id": "US-034",
+      "title": "LLM-as-judge scoring system",
+      "description": "As a developer, I need an LLM-based scoring system that can evaluate coding task completion quality.",
+      "acceptanceCriteria": [
+        "Scoring prompt template that evaluates code correctness",
+        "Multiple scoring dimensions (correctness, completeness, relevance)",
+        "Calibration against human-evaluated examples"
+      ],
+      "priority": 34,
+      "passes": false,
+      "notes": "NOT READY — Requires reliable scoring methodology and calibration data. Deferred."
+    },
+    {
+      "id": "US-035",
+      "title": "A/B comparison runner with/without codetex context",
+      "description": "As a developer, I need an A/B comparison runner that measures the impact of codetex context on LLM coding task performance.",
+      "acceptanceCriteria": [
+        "Runner executes each task twice: with codetex context and without",
+        "Statistical comparison of scores between conditions",
+        "Results include per-task and aggregate improvement metrics"
+      ],
+      "priority": 35,
+      "passes": false,
+      "notes": "NOT READY — Depends on US-033 and US-034. Requires LLM API budget and statistical significance testing."
     }
   ]
 }
