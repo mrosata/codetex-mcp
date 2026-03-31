@@ -1,6 +1,6 @@
 [project]
 name = "codetex-mcp"
-version = "0.3.0"
+version = "0.4.0"
 description = "Commit-aware code context manager for LLMs - MCP server and CLI"
 readme = "README.md"
 requires-python = ">=3.12"

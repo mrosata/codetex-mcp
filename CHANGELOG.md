@@ -1,6 +1,23 @@
 # CHANGELOG
 
 
+## v0.4.0 (2026-03-31)
+
+### Features
+
+- Add evaluation framework with IR metrics, token efficiency benchmarks, and AGENT.md
+  ([`8e831fb`](https://github.com/mrosata/codetex-mcp/commit/8e831fbb18c39b0762c9fdc1b78b9506ef8bef05))
+
+Implements approaches 1 (retrieval quality) and 2 (context efficiency) from the evaluation PRD. Adds
+  pure-function metric libraries, grep/raw-file baselines, curated ground-truth fixtures for
+  codetex-mcp and Flask, pytest benchmark runners that produce structured JSON results, and
+  comprehensive AGENT.md documentation.
+
+US-021 through US-032 complete (621 tests, mypy clean, 41 source files).
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+
+
 ## v0.3.0 (2026-03-30)
 
 ### Features
