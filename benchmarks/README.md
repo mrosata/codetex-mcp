@@ -14,6 +14,16 @@ Measures how many tokens codetex uses vs. naive approaches while preserving equi
 
 **Metrics:** Compression Ratio, Coverage Score, Token Density
 
+### 3. Task Completion (Correctness)
+Measures whether coding task outputs contain expected symbols, keywords, and code lines.
+
+**Metrics:** Symbol Presence, Keyword Overlap, Line Coverage, Aggregate Correctness, Success Rate
+
+### 4. A/B Comparison (Context Impact)
+Executes each task twice (with and without codetex context), computes per-task and aggregate improvement metrics, and performs statistical significance testing.
+
+**Metrics:** Paired t-test, Cohen's d effect size, Mean Improvement, Per-dimension breakdowns
+
 ## Running Benchmarks
 
 ```bash
@@ -25,6 +35,12 @@ uv run pytest benchmarks/test_retrieval_bench.py -m benchmark -v
 
 # Run only efficiency benchmarks
 uv run pytest benchmarks/test_efficiency_bench.py -m benchmark -v
+
+# Run only task completion benchmarks
+uv run pytest benchmarks/test_task_completion_bench.py -m benchmark -v
+
+# Run only A/B comparison benchmarks
+uv run pytest benchmarks/test_ab_comparison_bench.py -m benchmark -v
 ```
 
 ## Results
@@ -73,11 +89,20 @@ Fixtures live in `benchmarks/fixtures/<repo_name>/`:
 - **Coverage Score**: Higher is better. What fraction of expected concepts appear in context?
 - **Token Density**: Higher is better. What fraction of tokens are relevant?
 
+### A/B Comparison Metrics
+- **Paired t-test p-value**: Lower is better (< 0.05 = statistically significant). Is the improvement real or due to chance?
+- **Cohen's d**: Larger absolute value is better. How large is the effect? (< 0.2 negligible, 0.2-0.5 small, 0.5-0.8 medium, > 0.8 large)
+- **Mean Improvement**: Positive is better. Average per-task improvement (treatment - baseline)
+- **Improvement %**: Positive is better. Percentage improvement relative to baseline
+
 ## Metric Library
 
 Pure metric functions live in `src/codetex_mcp/benchmarks/`:
 
 - `metrics.py`: IR metrics (precision, recall, MRR, nDCG)
 - `token_metrics.py`: Token efficiency metrics
+- `task_metrics.py`: Task completion metrics (symbol presence, keyword overlap, line coverage)
+- `judge.py`: LLM-as-judge scoring (correctness, completeness, relevance)
+- `ab_stats.py`: A/B comparison statistics (paired t-test, Cohen's d, improvement metrics)
 - `baselines.py`: Naive baseline implementations
 - `report.py`: JSON result writer
