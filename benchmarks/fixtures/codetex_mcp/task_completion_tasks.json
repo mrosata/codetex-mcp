@@ -1,0 +1,121 @@
+{
+  "repo": "codetex-mcp",
+  "repo_path": ".",
+  "tasks": [
+    {
+      "id": "TC-001",
+      "task": "Write a function that serializes a list of floats into the binary format expected by sqlite-vec for embedding storage.",
+      "description": "Test knowledge of sqlite-vec binary embedding format",
+      "expected_symbols": ["struct.pack", "_serialize_f32"],
+      "expected_keywords": ["struct", "pack", "float", "bytes", "embedding"],
+      "expected_lines": [
+        "struct.pack"
+      ],
+      "verifiable_answer": "def serialize_f32(vector: list[float]) -> bytes:\n    return struct.pack(f\"{len(vector)}f\", *vector)"
+    },
+    {
+      "id": "TC-002",
+      "task": "Write a function that detects whether a given file path is a binary file by checking for null bytes in the first 8KB.",
+      "description": "Test knowledge of binary file detection pattern",
+      "expected_symbols": ["is_binary", "read", "open"],
+      "expected_keywords": ["binary", "null", "byte", "8192", "rb"],
+      "expected_lines": [
+        "open(",
+        "\\x00"
+      ],
+      "verifiable_answer": "def is_binary(file_path: Path) -> bool:\n    try:\n        with open(file_path, 'rb') as f:\n            chunk = f.read(8192)\n            return b'\\x00' in chunk\n    except OSError:\n        return False"
+    },
+    {
+      "id": "TC-003",
+      "task": "Write an async function that enables WAL mode and foreign keys on an aiosqlite connection.",
+      "description": "Test knowledge of SQLite pragmas for performance and integrity",
+      "expected_symbols": ["execute", "pragma", "journal_mode"],
+      "expected_keywords": ["WAL", "pragma", "journal_mode", "foreign_keys"],
+      "expected_lines": [
+        "PRAGMA journal_mode=WAL",
+        "PRAGMA foreign_keys=ON"
+      ],
+      "verifiable_answer": "async def configure_db(conn: aiosqlite.Connection) -> None:\n    await conn.execute('PRAGMA journal_mode=WAL')\n    await conn.execute('PRAGMA foreign_keys=ON')"
+    },
+    {
+      "id": "TC-004",
+      "task": "Write a function that computes the precision@k metric: the fraction of top-k retrieved items that are relevant.",
+      "description": "Test knowledge of standard IR metric implementation",
+      "expected_symbols": ["precision_at_k"],
+      "expected_keywords": ["precision", "relevant", "retrieved", "top_k", "hits"],
+      "expected_lines": [
+        "retrieved[:k]",
+        "hits / len(top_k)"
+      ],
+      "verifiable_answer": "def precision_at_k(retrieved: list[str], relevant: set[str], k: int) -> float:\n    if k <= 0 or not retrieved:\n        return 0.0\n    top_k = retrieved[:k]\n    hits = sum(1 for item in top_k if item in relevant)\n    return hits / len(top_k)"
+    },
+    {
+      "id": "TC-005",
+      "task": "Write a function that extracts the repository name from a git remote URL, handling both HTTPS and SSH URLs and stripping .git suffix.",
+      "description": "Test knowledge of URL parsing for git repos",
+      "expected_symbols": ["_repo_name_from_url", "split", "rstrip"],
+      "expected_keywords": ["url", "git", "basename", "split", ".git"],
+      "expected_lines": [
+        ".git"
+      ],
+      "verifiable_answer": "def repo_name_from_url(url: str) -> str:\n    url = url.rstrip('/')\n    name = url.split('/')[-1]\n    if name.endswith('.git'):\n        name = name[:-4]\n    return name"
+    },
+    {
+      "id": "TC-006",
+      "task": "Write an async function that performs upsert for a file record using ON CONFLICT(repo_id, path) DO UPDATE, and returns the file_id by querying back since lastrowid may be stale.",
+      "description": "Test knowledge of SQLite upsert gotcha with lastrowid",
+      "expected_symbols": ["upsert_file", "execute", "fetchone", "lastrowid"],
+      "expected_keywords": ["ON CONFLICT", "DO UPDATE", "repo_id", "path", "SELECT id FROM"],
+      "expected_lines": [
+        "ON CONFLICT(repo_id, path) DO UPDATE",
+        "SELECT id FROM files WHERE repo_id=? AND path=?"
+      ],
+      "verifiable_answer": "async def upsert_file(db, repo_id, path, language, loc, tokens, imports_json):\n    await db.execute(\n        'INSERT INTO files (repo_id, path, language, lines_of_code, token_count, imports_json) '\n        'VALUES (?, ?, ?, ?, ?, ?) '\n        'ON CONFLICT(repo_id, path) DO UPDATE SET '\n        'language=excluded.language, lines_of_code=excluded.lines_of_code',\n        (repo_id, path, language, loc, tokens, imports_json),\n    )\n    cursor = await db.execute(\n        'SELECT id FROM files WHERE repo_id=? AND path=?', (repo_id, path)\n    )\n    row = await cursor.fetchone()\n    return row[0]"
+    },
+    {
+      "id": "TC-007",
+      "task": "Write a dataclass for a search result that includes kind (file or symbol), path, name, summary, and a float score.",
+      "description": "Test knowledge of typed dataclass patterns",
+      "expected_symbols": ["SearchResult", "dataclass", "Literal"],
+      "expected_keywords": ["dataclass", "kind", "path", "name", "summary", "score", "Literal"],
+      "expected_lines": [
+        "@dataclass",
+        "kind: Literal"
+      ],
+      "verifiable_answer": "@dataclass\nclass SearchResult:\n    kind: Literal['file', 'symbol']\n    path: str\n    name: str\n    summary: str | None\n    score: float"
+    },
+    {
+      "id": "TC-008",
+      "task": "Write a function that implements exponential backoff with jitter for rate limiting. It should compute delay as min(base_delay * 2^(n-1), max_delay) and add random jitter.",
+      "description": "Test knowledge of rate limiting and backoff patterns",
+      "expected_symbols": ["handle_rate_limit", "asyncio.sleep", "random.uniform"],
+      "expected_keywords": ["backoff", "jitter", "delay", "sleep", "random", "exponential"],
+      "expected_lines": [
+        "min(",
+        "random.uniform"
+      ],
+      "verifiable_answer": "async def handle_rate_limit(self) -> None:\n    self._consecutive += 1\n    delay = min(self.base_delay * (2 ** (self._consecutive - 1)), self.max_delay)\n    jitter = random.uniform(0, delay)\n    await asyncio.sleep(delay + jitter)"
+    },
+    {
+      "id": "TC-009",
+      "task": "Write a function that detects the programming language from a file extension. It should map .py to python, .js/.jsx to javascript, .ts/.tsx to typescript, .go to go, .rs to rust.",
+      "description": "Test knowledge of language detection logic",
+      "expected_symbols": ["detect_language", "suffix"],
+      "expected_keywords": ["extension", "python", "javascript", "typescript", "suffix"],
+      "expected_lines": [
+        ".py",
+        ".js"
+      ],
+      "verifiable_answer": "def detect_language(path: Path) -> str | None:\n    ext_map = {\n        '.py': 'python', '.pyw': 'python',\n        '.js': 'javascript', '.jsx': 'javascript',\n        '.ts': 'typescript', '.tsx': 'typescript',\n        '.go': 'go', '.rs': 'rust',\n    }\n    return ext_map.get(path.suffix.lower())"
+    },
+    {
+      "id": "TC-010",
+      "task": "Write a function that builds a directory tree string from a list of file paths using Unicode box-drawing characters (like tree command output).",
+      "description": "Test knowledge of tree rendering",
+      "expected_symbols": ["_build_directory_tree"],
+      "expected_keywords": ["tree", "directory", "path", "children"],
+      "expected_lines": [],
+      "verifiable_answer": "def build_directory_tree(paths: list[str]) -> str:\n    tree: dict = {}\n    for p in paths:\n        parts = p.split('/')\n        node = tree\n        for part in parts:\n            node = node.setdefault(part, {})\n    lines: list[str] = []\n    def render(node, prefix=''):\n        items = sorted(node.items())\n        for i, (name, children) in enumerate(items):\n            connector = 'L-- ' if i == len(items) - 1 else '|-- '\n            lines.append(prefix + connector + name)\n            extension = '    ' if i == len(items) - 1 else '|   '\n            render(children, prefix + extension)\n    render(tree)\n    return '\\n'.join(lines)"
+    }
+  ]
+}

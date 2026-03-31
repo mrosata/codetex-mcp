@@ -574,8 +574,8 @@
         "Results include correctness scores per task"
       ],
       "priority": 33,
-      "passes": false,
-      "notes": "NOT READY — Requires LLM API calls (expensive). Deferred until approaches 1+2 establish baselines."
+      "passes": true,
+      "notes": "Completed: src/codetex_mcp/benchmarks/task_metrics.py with 6 pure metric functions (exact_match, line_coverage, symbol_presence, keyword_overlap, aggregate_correctness, success_rate). benchmarks/fixtures/codetex_mcp/task_completion_tasks.json with 10 curated coding tasks with verifiable answers. benchmarks/test_task_completion_bench.py with benchmark runner supporting with/without codetex context modes, _score_task and _build_codetex_context helpers, structured JSON result output. 38 unit tests in tests/test_benchmarks/test_task_metrics.py across 7 test classes. mypy passes (42 source files), all 659 tests pass."
     },
     {
       "id": "US-034",

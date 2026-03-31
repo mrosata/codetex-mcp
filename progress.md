@@ -792,3 +792,45 @@
 - Tools access internal FastMCP `_tool_manager` for testing — this is an implementation detail but the only way to unit-test individual tools without running a full MCP session
 - The `serve` command in CLI was already wired in US-019 to call `create_server().run()` — this story just added the tools to the server
 - **All 20 user stories (US-001 through US-020) are now complete.** The project has full functionality: CLI, MCP server, indexing, syncing, search, and context retrieval
+
+## US-033: Task completion evaluation framework
+
+**Status:** Complete
+**Date:** 2026-03-30
+
+### What was done
+- Created `src/codetex_mcp/benchmarks/task_metrics.py` with 6 pure metric functions:
+  - `exact_match(expected, actual) -> float` — strict equality after whitespace stripping
+  - `line_coverage(expected_lines, actual) -> float` — fraction of expected lines found as substrings in actual
+  - `symbol_presence(expected_symbols, actual) -> float` — fraction of expected symbol names found (case-sensitive)
+  - `keyword_overlap(expected_keywords, actual) -> float` — fraction of expected keywords found (case-insensitive)
+  - `aggregate_correctness(symbol_score, keyword_score, line_score) -> float` — weighted aggregate (0.4 symbol + 0.3 keyword + 0.3 line)
+  - `success_rate(scores, threshold=0.5) -> float` — fraction of tasks with score >= threshold
+- Created `benchmarks/fixtures/codetex_mcp/task_completion_tasks.json` with 10 curated coding tasks:
+  - Each task has: id, task description, expected_symbols, expected_keywords, expected_lines, verifiable_answer
+  - Tasks cover: sqlite-vec binary serialization, binary file detection, SQLite pragmas, IR metrics, git URL parsing, upsert gotchas, dataclass patterns, rate limiting, language detection, directory tree building
+- Created `benchmarks/test_task_completion_bench.py` with benchmark runner:
+  - `_score_task(task, actual)` — scores a single task against ground truth using all sub-metrics
+  - `_build_codetex_context(repo_path, task)` — builds simulated codetex-style context (signatures + docstrings)
+  - `_run_task_completion_benchmark(fixture_file, repo_name, results_dir, with_context)` — full runner with JSON result output
+  - `TestTaskCompletionBenchmark` class with `@pytest.mark.benchmark` marker and two tests: baseline and with_context
+  - Framework validates scoring pipeline using verifiable_answer as simulated LLM output
+- Created `tests/test_benchmarks/test_task_metrics.py` with 38 unit tests across 7 classes:
+  - `TestExactMatch` (7 tests) — identical/different/whitespace/case/empty
+  - `TestLineCoverage` (6 tests) — all/none/partial/empty/stripped
+  - `TestSymbolPresence` (6 tests) — all/none/partial/case/empty
+  - `TestKeywordOverlap` (6 tests) — all/none/partial/case-insensitive/empty
+  - `TestAggregateCorrectness` (6 tests) — perfect/zero/individual weights/mixed
+  - `TestSuccessRate` (7 tests) — all/none/partial/custom threshold/empty/boundary
+- mypy passes (42 source files, no issues)
+- All 659 tests pass (38 new + 621 existing)
+- Benchmark runner passes: `uv run pytest benchmarks/test_task_completion_bench.py -m benchmark -v`
+
+### Notes for next developer
+- The benchmark runner currently uses `verifiable_answer` from fixtures as simulated LLM output — this validates the scoring framework without actual API calls
+- For real A/B testing (US-035), replace the `actual = task.get("verifiable_answer", "")` line with an actual LLM API call, passing `_build_codetex_context()` output as context for the "with context" condition
+- `aggregate_correctness` weights (0.4/0.3/0.3) are a reasonable starting point — adjust based on which dimension is most important for the use case
+- Tasks in the fixture don't have `relevant_files` — the `_build_codetex_context` helper gracefully handles this via `.get("relevant_files", [])`. Add `relevant_files` to tasks when you want the context builder to include actual file signatures
+- The `success_rate` function treats scores exactly at the threshold as passing (>= not >)
+- Next priority: **US-034** (LLM-as-judge scoring system) — requires building scoring prompt templates and calibration methodology
+- Architecture reference: `tasks/prd-evaluation.md` §Approach 3
