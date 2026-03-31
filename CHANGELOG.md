@@ -1,6 +1,40 @@
 # CHANGELOG
 
 
+## v0.5.0 (2026-03-31)
+
+### Features
+
+- Add A/B comparison runner with statistical significance testing (US-035)
+  ([`a7fd40e`](https://github.com/mrosata/codetex-mcp/commit/a7fd40ef66093c7f8c31acd1f00e482d5e29eac4))
+
+Add a framework for evaluating the impact of codetex context on LLM coding task performance.
+  Includes pure-Python paired t-test (via regularized incomplete beta function), Cohen's d effect
+  size, and per-task/per-dimension improvement tracking. 35 new unit tests, 737 total tests pass,
+  mypy clean.
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+
+- Add LLM-as-judge scoring system (US-034)
+  ([`fe92c07`](https://github.com/mrosata/codetex-mcp/commit/fe92c07fd5d08c38d245a4fa2fc31c8c7b11f9b0))
+
+Add judge module with scoring prompt template, response parser, and calibration framework for
+  evaluating coding task completion quality across three dimensions (correctness, completeness,
+  relevance).
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+
+- Add task completion evaluation framework (US-033)
+  ([`6dfc3b1`](https://github.com/mrosata/codetex-mcp/commit/6dfc3b11c8b3b9ba5e665b482f47775507d1ebc5))
+
+Add pure-function task metrics library (exact_match, line_coverage, symbol_presence,
+  keyword_overlap, aggregate_correctness, success_rate), 10 curated coding task fixtures with
+  verifiable answers, and a benchmark runner supporting with/without codetex context modes. 38 new
+  unit tests, 659 total tests passing, mypy clean.
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+
+
 ## v0.4.0 (2026-03-31)
 
 ### Features
